@@ -1,0 +1,17 @@
+{
+  "name": "pitchside-kickoff-checker",
+  "version": "0.1.0",
+  "description": "Checks Pitchside fixture kickoff times against public evidence and recommends corrections for the ops team.",
+  "type": "module",
+  "private": true,
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "start": "node index.js",
+    "test": "node --test"
+  },
+  "dependencies": {
+    "openai": "^7.45.1"
+  }
+}
