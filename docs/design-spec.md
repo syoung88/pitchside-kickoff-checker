@@ -4,7 +4,7 @@ Status: DRAFT for review. Agreed section by section with the author; no product 
 
 ## 1. Purpose and scope
 
-Pitchside Data sells a UTC fixture feed to broadcasters, betting operators and apps. Kickoff times go stale when clubs and leagues move matches. This tool reads the monitored fixtures and the evidence collected for each, decides whether the feed's kickoff time is right, and writes a report telling the operations team (two analysts, about half an hour a day between them) what to do.
+Pitchside Data sells a UTC fixture feed to broadcasters, betting operators and apps. Kickoff times go stale when clubs and leagues move matches. This tool reads the monitored fixtures and the evidence collected for each, decides whether the feed's kickoff time is right, and writes a report telling the operations team (two analysts, with half an hour a day between them) what to do.
 
 **The tool recommends only. It never writes to the production feed.** The previous tool did, and it cost Pitchside a client. This is non-negotiable for the pilot.
 
