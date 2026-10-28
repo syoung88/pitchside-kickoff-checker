@@ -5,7 +5,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { readFileSync } from 'node:fs';
 import {
-  PROMPT_VERSION, validateClaim, cacheKey, createCache, createLlmClient, claimFromFeedListing, extractClaim,
+  PROMPT_VERSION, SYSTEM_PROMPT, CLAIM_SCHEMA, validateClaim, cacheKey, createCache, createLlmClient, claimFromFeedListing, extractClaim,
 } from '../src/extract.js';
 
 const dir = new URL('../data/snapshot/', import.meta.url);
@@ -60,6 +60,18 @@ test('cacheKey is stable and sensitive to text, model and prompt version', () =>
   assert.notEqual(cacheKey(base), cacheKey({ ...base, model: 'n' }));
   assert.notEqual(cacheKey(base), cacheKey({ ...base, fixtureContext: 'd' }));
   assert.match(PROMPT_VERSION, /^v\d+/);
+});
+
+test('cacheKey changes when the output schema changes, without a version bump', () => {
+  const base = { model: 'm', fixtureContext: 'c', text: 't' };
+  const before = cacheKey(base);
+  CLAIM_SCHEMA.properties.is_tbc.description = 'edited';
+  try {
+    assert.notEqual(cacheKey(base), before);
+  } finally {
+    delete CLAIM_SCHEMA.properties.is_tbc.description;
+  }
+  assert.equal(cacheKey(base), before);
 });
 
 test('extractClaim returns a claim and the second call is served from the cache', async () => {
@@ -140,8 +152,26 @@ test('the prompt gives the model the competition and who posted, and judges "sam
   assert.match(user, /Posted by: Harbour City FC \(@HarbourCityFC\)/);
   assert.match(system, /not by date or weekday/i);
   assert.match(system, /different opponent/i);
-  assert.equal(PROMPT_VERSION, 'v3');
-  assert.match(system, /moved to 6 PM[^\n]*not a postponement/i);
+});
+
+// The stub returns what the model should return for each wording; these pin how extractClaim passes the flag through
+// (the prompt itself is exercised only by the cached golden runs).
+for (const [name, text, flag] of [
+  ['a same-day time change', 'Schedule change: Saturday\'s match is moved to 6 PM ET', false],
+  ['a move to a different, named date', 'Saturday\'s match is rescheduled to Sunday 20 July at 3 PM ET', true],
+]) {
+  test(`extractClaim passes isPostponement=${flag} through for ${name}`, async () => {
+    const quote = text.match(/\d+ PM/)[0];
+    const raw = { ...good, kickoff_time_24h: quote.startsWith('6') ? '18:00' : '15:00', quote, is_postponement_or_cancellation: flag };
+    const r = await extractClaim({ fixture, evidence: { ...evidence, text }, llm: fakeLlm(JSON.stringify(raw)), cache: createCache(tmp()), model: 'm' });
+    assert.equal(r.status, 'ok');
+    assert.equal(r.claim.isPostponement, flag);
+  });
+}
+
+test('the prompt says a different date is a postponement and a same-day time change is not', () => {
+  assert.match(SYSTEM_PROMPT, /different day or date/);
+  assert.match(SYSTEM_PROMPT, /same day[^\n]*is not a postponement/);
 });
 
 test('validateClaim requires the quote to contain the stated hour', () => {

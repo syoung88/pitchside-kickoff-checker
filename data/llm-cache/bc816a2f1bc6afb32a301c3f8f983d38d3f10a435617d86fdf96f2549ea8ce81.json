@@ -1,19 +1,16 @@
 {
-  "evidence_id": "ev-2207-b",
+  "evidence_id": "ev-2202-a",
   "model": "gpt-4.1-mini",
-  "prompt_version": "v3",
+  "prompt_version": "v4",
   "response": {
     "about_this_fixture": "yes",
     "kickoff_time_24h": "19:00",
     "timezone_stated": null,
-    "date_text": null,
+    "date_text": "this Saturday",
     "is_postponement_or_cancellation": false,
     "is_rumour_or_unconfirmed": false,
     "is_tbc": false,
-    "quote": "7pm kickoff",
-    "ignored_times": [
-      "gates open at 5:30pm",
-      "Parking lots open from 4pm"
-    ]
+    "quote": "Kickoff 7:00 PM this Saturday at Summit Park",
+    "ignored_times": []
   }
 }

@@ -1,7 +1,7 @@
 {
   "evidence_id": "ev-2206-a",
   "model": "gpt-4.1-mini",
-  "prompt_version": "v3",
+  "prompt_version": "v4",
   "response": {
     "about_this_fixture": "unclear",
     "kickoff_time_24h": "20:00",
@@ -11,6 +11,8 @@
     "is_rumour_or_unconfirmed": true,
     "is_tbc": true,
     "quote": "might get pushed to 8pm",
-    "ignored_times": []
+    "ignored_times": [
+      "work till 7"
+    ]
   }
 }

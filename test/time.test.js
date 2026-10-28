@@ -50,6 +50,16 @@ test('resolveZone: Spanish city names, with or without accents', () => {
   assert.deepEqual(resolveZone('hora de Fénix', 'America/Denver'), { tz: 'America/Phoenix', via: 'stated' });
 });
 
+test('resolveZone: Spanish zone names and ASCII English wording', () => {
+  const cases = [
+    ['hora del Este', 'America/New_York'], ['hora central', 'America/Chicago'], ['Hora del Pacífico', 'America/Los_Angeles'],
+    ['hora de la Montaña', 'America/Denver'], ['hora de Chicago', 'America/Chicago'],
+    ['ET.', 'America/New_York'], ['Eastern Time', 'America/New_York'], ['Pacific Time', 'America/Los_Angeles'],
+  ];
+  for (const [text, tz] of cases) assert.deepEqual(resolveZone(text, 'America/Denver'), { tz, via: 'stated' }, text);
+  assert.deepEqual(resolveZone('hora de la Montaña', 'America/Phoenix'), { tz: 'America/Phoenix', via: 'venue' });
+});
+
 test('resolveZone: "hora de Denver" overrides a New York venue', () => {
   assert.deepEqual(resolveZone('hora de Denver', 'America/New_York'), { tz: 'America/Denver', via: 'stated' });
 });

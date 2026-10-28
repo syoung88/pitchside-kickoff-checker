@@ -1,16 +1,16 @@
 {
-  "evidence_id": "ev-2201-b",
+  "evidence_id": "ev-2201-c",
   "model": "gpt-4.1-mini",
-  "prompt_version": "v3",
+  "prompt_version": "v4",
   "response": {
     "about_this_fixture": "yes",
     "kickoff_time_24h": "18:00",
-    "timezone_stated": "Eastern",
-    "date_text": "this Saturday",
+    "timezone_stated": "ET",
+    "date_text": "Saturday June 20",
     "is_postponement_or_cancellation": false,
     "is_rumour_or_unconfirmed": false,
     "is_tbc": false,
-    "quote": "Kickoff against Harbour City confirmed for 6pm Eastern this Saturday",
+    "quote": "Kickoff 6:00 PM ET",
     "ignored_times": []
   }
 }
