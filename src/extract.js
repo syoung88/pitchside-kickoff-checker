@@ -133,6 +133,11 @@ export function validateClaim(raw, text) {
   if (raw.kickoff_time_24h !== null && raw.quote === null) return fail('quote missing for a stated kickoff time');
   if (raw.quote !== null && !foldForQuote(text).includes(foldForQuote(raw.quote))) return fail('quote not found in the evidence text');
   if (raw.kickoff_time_24h !== null && !quoteSupportsTime(raw.quote, raw.kickoff_time_24h, raw.ignored_times)) return fail('quote does not contain the stated kickoff time');
+  // The model ticks both flags on two different things. A notice with no time ("times remain TBC") is a firm TBC
+  // announcement, not a rumour; a hedged post that names a time ("might move to 9 PM, nothing confirmed") is a rumour,
+  // not a TBC notice.
+  const hasTimeAndRumour = raw.kickoff_time_24h !== null && raw.is_rumour_or_unconfirmed;
+  const isTbcNotice = raw.is_tbc && !hasTimeAndRumour;
   return {
     ok: true,
     claim: {
@@ -141,9 +146,8 @@ export function validateClaim(raw, text) {
       zoneText: raw.timezone_stated,
       dateText: raw.date_text,
       isPostponement: raw.is_postponement_or_cancellation,
-      // The model often ticks both flags on an official TBC notice; a TBC announcement is firm, not a rumour.
-      isRumour: raw.is_rumour_or_unconfirmed && !raw.is_tbc,
-      isTbc: raw.is_tbc,
+      isRumour: raw.is_rumour_or_unconfirmed && !isTbcNotice,
+      isTbc: isTbcNotice,
       quote: raw.quote,
       ignoredTimes: raw.ignored_times,
     },

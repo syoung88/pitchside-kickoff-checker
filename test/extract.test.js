@@ -173,3 +173,10 @@ test('validateClaim does not treat an official TBC notice as a rumour', () => {
   assert.equal(validateClaim(raw, text).claim.isRumour, false);
   assert.equal(validateClaim({ ...raw, is_tbc: false }, text).claim.isRumour, true);
 });
+
+test('validateClaim treats a hedged post that names a time as a rumour even when the model also ticks TBC', () => {
+  const text = 'Hearing we might move to 9 PM, nothing confirmed yet';
+  const raw = { ...good, kickoff_time_24h: '21:00', quote: 'move to 9 PM', is_tbc: true, is_rumour_or_unconfirmed: true };
+  const { claim } = validateClaim(raw, text);
+  assert.deepEqual([claim.isRumour, claim.isTbc], [true, false]);
+});
