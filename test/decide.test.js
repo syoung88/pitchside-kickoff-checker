@@ -188,3 +188,12 @@ test('the reason reads correctly for one organisation and for several', () => {
   assert.doesNotMatch(many.reason, /\bstates\b/);
   assert.match(many.reason, /\bstate\b/);
 });
+
+test('G1: an official claim with a stated time that could not be resolved is never silently dropped', () => {
+  const unresolved = league('lg', { utc: null, timeLocal: '19:00', unusableReason: 'unrecognised timezone wording "BST"' });
+  const withAgreeing = run(makeFixture({ kickoff_utc: '2026-07-01T02:00:00Z' }), [club('a', 'club:cactusathletic'), unresolved]);
+  assert.deepEqual([withAgreeing.verdict, withAgreeing.rule], ['needs_review', 'G1']);
+  assert.match(withAgreeing.reason, /lg/);
+  const alone = run(makeFixture(), [unresolved]);
+  assert.deepEqual([alone.verdict, alone.rule], ['needs_review', 'G1']);
+});

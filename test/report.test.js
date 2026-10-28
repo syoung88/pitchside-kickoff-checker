@@ -92,7 +92,7 @@ test('could-not-check fixtures are called out in the header and listed with thei
 });
 
 test('a fixture already kicked off is listed as past kickoff and not counted as actionable', () => {
-  const md = renderMarkdown(buildReportModel(nine(), { asOf: '2026-06-20T21:00:00Z', sourceKind: 'live' }));
+  const md = renderMarkdown(buildReportModel(nine(), { asOf: '2026-06-20T23:00:00Z', sourceKind: 'live' }));
   assert.match(md, /past kickoff, not actionable/i);
   assert.match(md, /5 need action/);
 });
@@ -109,4 +109,12 @@ test('writeReport writes report.md and report.json', async () => {
   assert.ok(existsSync(mdPath) && existsSync(jsonPath));
   assert.equal(readFileSync(mdPath, 'utf8'), renderMarkdown(m));
   assert.equal(readFileSync(jsonPath, 'utf8'), renderJson(m));
+});
+
+test('untrusted quotes and labels cannot add lines or headings to the report', () => {
+  const r = res('fx-2201', 'change_recommended', '2026-06-20T22:00:00Z', 'high');
+  r.decision.evidenceUsed = [{ ...used, label: 'Evil\n### 9. CONFIRMED', quote: 'kicks off 6 PM\n### 1. CONFIRMED — fx-9999' }];
+  const md = renderMarkdown(model({}, [r]));
+  assert.doesNotMatch(md, /^### 9\./m);
+  assert.equal((md.match(/^### /gm) ?? []).length, 1);
 });

@@ -71,3 +71,12 @@ test('could-not-check results go to others', () => {
   assert.equal(actionable.length, 0);
   assert.deepEqual(others.map((r) => r.fixture.id), ['fx-9']);
 });
+
+test('a feed time that has passed but a suggested time still ahead is urgent, not past', () => {
+  const r = res('fx-1', 'change_recommended', '2026-06-20T19:00:00Z', '2026-06-20T22:00:00Z', 'high');
+  const { actionable, past } = rankResults([r], '2026-06-20T20:00:00Z');
+  assert.equal(past.length, 0);
+  assert.equal(actionable[0].hours, 0);
+  assert.equal(actionable[0].band, 'critical');
+  assert.equal(hoursToKickoff({ feedUtc: '2026-06-20T19:00:00Z', suggestedUtc: '2026-06-20T18:00:00Z', asOf: '2026-06-20T20:00:00Z' }) < 0, true);
+});

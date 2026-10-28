@@ -142,3 +142,12 @@ test('the prompt gives the model the competition and who posted, and judges "sam
   assert.match(system, /different opponent/i);
   assert.equal(PROMPT_VERSION, 'v2');
 });
+
+test('validateClaim requires the quote to contain the stated hour', () => {
+  const text = 'See you Saturday at the ground, kickoff at 7:00 PM';
+  assert.equal(validateClaim({ ...good, kickoff_time_24h: '14:00', quote: 'See you Saturday' }, text).ok, false);
+  assert.equal(validateClaim({ ...good, kickoff_time_24h: '19:00', quote: 'kickoff at 7:00 PM' }, text).ok, true);
+  assert.equal(validateClaim({ ...good, kickoff_time_24h: '18:30', quote: '6:30 PM PT' }, '6:30 PM PT').ok, true);
+  assert.equal(validateClaim({ ...good, kickoff_time_24h: '22:00', quote: '10 PM Eastern' }, '10 PM Eastern').ok, true);
+  assert.equal(validateClaim({ ...good, kickoff_time_24h: '12:00', quote: 'kicks off at noon' }, 'kicks off at noon').ok, true);
+});

@@ -86,6 +86,17 @@ const foldForQuote = (s) => String(s).normalize('NFC')
   .replace(/[‘’]/g, "'").replace(/[“”]/g, '"')
   .replace(/\s+/g, ' ').trim().toLowerCase();
 
+// The quote must actually contain the stated hour (24h or 12h form), so a model cannot attach a time to an unrelated phrase.
+function quoteSupportsTime(quote, hhmm) {
+  const h24 = Number(hhmm.slice(0, 2));
+  const h12 = h24 % 12 || 12;
+  const numbers = [...quote.matchAll(/(?<!\d)\d{1,2}(?!\d)/g)].map((m) => Number(m[0]));
+  if (numbers.includes(h24) || numbers.includes(h12)) return true;
+  if (hhmm === '12:00') return /\b(noon|midday|mediod[ií]a)\b/i.test(quote);
+  if (hhmm === '00:00') return /\b(midnight|medianoche)\b/i.test(quote);
+  return false;
+}
+
 const TIME_24H = /^([01]\d|2[0-3]):[0-5]\d$/;
 const isStringOrNull = (v) => v === null || typeof v === 'string';
 
@@ -102,6 +113,7 @@ export function validateClaim(raw, text) {
   if (!isStringOrNull(raw.quote)) return fail('invalid quote');
   if (raw.kickoff_time_24h !== null && raw.quote === null) return fail('quote missing for a stated kickoff time');
   if (raw.quote !== null && !foldForQuote(text).includes(foldForQuote(raw.quote))) return fail('quote not found in the evidence text');
+  if (raw.kickoff_time_24h !== null && !quoteSupportsTime(raw.quote, raw.kickoff_time_24h)) return fail('quote does not contain the stated kickoff hour');
   return {
     ok: true,
     claim: {

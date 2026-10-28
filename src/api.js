@@ -8,6 +8,7 @@ export class ApiError extends Error {
   }
 }
 
+const MAX_RETRY_AFTER_MS = 30000;
 const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 // GET/POST JSON with a per-attempt timeout; retries network errors, timeouts, 5xx and 429 with backoff.
@@ -28,7 +29,7 @@ export async function fetchWithRetry(url, init = {}, opts = {}) {
       if (res.status !== 429 && res.status < 500) throw new ApiError(`HTTP ${res.status}`);
       lastReason = `HTTP ${res.status}`;
       const seconds = Number(res.headers?.get('retry-after'));
-      if (Number.isFinite(seconds) && seconds > 0) retryAfterMs = seconds * 1000;
+      if (Number.isFinite(seconds) && seconds > 0) retryAfterMs = Math.min(seconds * 1000, MAX_RETRY_AFTER_MS);
     } catch (err) {
       if (err instanceof ApiError) throw err;
       lastReason = err?.name === 'TimeoutError' ? `timeout after ${timeoutMs}ms` : `network error: ${err?.message ?? err}`;
@@ -37,6 +38,8 @@ export async function fetchWithRetry(url, init = {}, opts = {}) {
   }
   throw new ApiError(`${lastReason} after ${retries + 1} attempts`);
 }
+
+const TIMESTAMP = { social_post: 'posted_at', web_page: 'fetched_at', feed_listing: 'retrieved_at' };
 
 const REQUIRED = {
   social_post: ['account', 'text', 'posted_at'],
@@ -56,6 +59,7 @@ export function normalizeEvidence(raw) {
     else {
       const missing = REQUIRED[e.type].filter((field) => !e[field]);
       if (missing.length > 0) skipped.push({ evidenceId, reason: `missing ${missing.join(', ')}` });
+      else if (Number.isNaN(Date.parse(e[TIMESTAMP[e.type]]))) skipped.push({ evidenceId, reason: 'malformed timestamp' });
       else items.push(e);
     }
   }

@@ -166,8 +166,12 @@ export function decide(input) {
   if (!GUARDED.has(base.verdict)) return base;
   const unreadable = input.unreadable.filter((u) => u.source.tier === 'official').map((u) => u.evidenceId);
   const unclear = input.items.filter((i) => i.source.tier === 'official' && i.claim.aboutFixture === 'unclear').map((i) => i.evidenceId);
-  const ids = [...unreadable, ...unclear];
+  const unresolved = input.items
+    .filter((i) => i.source.tier === 'official' && i.claim.aboutFixture === 'yes' && i.claim.timeLocal && !i.resolution.utc
+      && !i.claim.isPostponement && !i.claim.isTbc)
+    .map((i) => i.evidenceId);
+  const ids = [...unreadable, ...unclear, ...unresolved];
   if (ids.length === 0) return base;
   return { ...base, verdict: 'needs_review', rule: 'G1', suggestedUtc: null, confidence: null,
-    reason: `An official post (${ids.join(', ')}) could not be read, so the tool cannot rule out a change; without it the verdict would have been "${base.verdict.replace('_', ' ')}"` };
+    reason: `An official post (${ids.join(', ')}) could not be read or converted, so the tool cannot rule out a change; without it the verdict would have been "${base.verdict.replace('_', ' ')}"` };
 }

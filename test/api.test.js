@@ -119,3 +119,17 @@ test('live source rejects a fixtures response without a fixtures array', async (
   const { fetchFn } = sequence(resp(200, { nope: true }));
   await assert.rejects(createLiveSource({ apiBase: 'http://h' }, fetchFn).listFixtures(), ApiError);
 });
+
+test('evidence with an unparseable timestamp is skipped', () => {
+  const bad = { id: 'b', type: 'web_page', url: 'u', title: 't', snippet: 's', fetched_at: 'yesterday-ish' };
+  const { items, skipped } = normalizeEvidence({ evidence: [bad] });
+  assert.equal(items.length, 0);
+  assert.match(skipped[0].reason, /timestamp/);
+});
+
+test('a huge Retry-After is capped', async () => {
+  const { fetchFn } = sequence(resp(429, {}, { 'retry-after': '3600' }), resp(200, { ok: 1 }));
+  const t = instant();
+  await fetchWithRetry('http://x', {}, { fetchFn, ...t });
+  assert.deepEqual(t.delays, [30000]);
+});

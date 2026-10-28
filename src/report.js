@@ -70,21 +70,22 @@ export function buildReportModel(results, { asOf, sourceKind }) {
   };
 }
 
+const oneLine = (s) => String(s ?? '').replace(/\s+/g, ' ').trim();
 const names = (f) => `${f.home} v ${f.away}`;
-const quoted = (q) => (q ? `\n  - Said: "${q}"` : '');
+const quoted = (q) => (q ? `\n  - Said: "${oneLine(q)}"` : '');
 
 function renderUsed(l) {
-  const lines = [`- **${l.label}**${l.at ? ` · ${l.at}` : ''}`];
-  if (l.quote) lines.push(`  - Said: "${l.quote}"`);
-  for (const w of l.working) lines.push(`  - Working: ${w}`);
-  lines.push(`  - Role: ${l.note}`);
-  if (l.ignored_times.length > 0) lines.push(`  - Other times mentioned, not kickoff: ${l.ignored_times.join('; ')}`);
+  const lines = [`- **${oneLine(l.label)}**${l.at ? ` · ${oneLine(l.at)}` : ''}`];
+  if (l.quote) lines.push(`  - Said: "${oneLine(l.quote)}"`);
+  for (const w of l.working) lines.push(`  - Working: ${oneLine(w)}`);
+  lines.push(`  - Role: ${oneLine(l.note)}`);
+  if (l.ignored_times.length > 0) lines.push(`  - Other times mentioned, not kickoff: ${oneLine(l.ignored_times.join('; '))}`);
   return lines.join('\n');
 }
 
 function renderNotUsed(l) {
-  const head = `- **${l.label}**${l.at ? ` · ${l.at}` : ''} — ${l.note}`;
-  return `${head}${quoted(l.quote)}${l.ignored_times.length > 0 ? `\n  - Other times mentioned, not kickoff: ${l.ignored_times.join('; ')}` : ''}`;
+  const head = `- **${oneLine(l.label)}**${l.at ? ` · ${oneLine(l.at)}` : ''} — ${oneLine(l.note)}`;
+  return `${head}${quoted(l.quote)}${l.ignored_times.length > 0 ? `\n  - Other times mentioned, not kickoff: ${oneLine(l.ignored_times.join('; '))}` : ''}`;
 }
 
 function renderItem(item) {
@@ -99,7 +100,7 @@ function renderItem(item) {
     '',
     `- Feed: ${feed}`,
     `- ${suggestedLabel}: ${suggested}`,
-    `- Why: ${item.reason}`,
+    `- Why: ${oneLine(item.reason)}`,
     item.last_verified_at ? `- Feed last verified: ${item.last_verified_at} (context only)` : null,
     '',
     '**Evidence used**',
@@ -108,7 +109,7 @@ function renderItem(item) {
     '**Evidence not used**',
     item.evidence_not_used.length > 0 ? item.evidence_not_used.map(renderNotUsed).join('\n') : '- none',
   ];
-  if (item.caveats.length > 0) out.push('', '**Caveats**', ...item.caveats.map((c) => `- ${c}`));
+  if (item.caveats.length > 0) out.push('', '**Caveats**', ...item.caveats.map((c) => `- ${oneLine(c)}`));
   return out.filter((l) => l !== null).join('\n');
 }
 
@@ -144,7 +145,7 @@ export function renderMarkdown(model) {
     lines.push('## Other fixtures', '', '| Fixture | Outcome | Why |', '|---|---|---|');
     for (const o of model.others) {
       const confidence = o.confidence ? ` (${o.confidence})` : '';
-      lines.push(`| ${o.fixture.id} ${names(o.fixture)} | ${VERDICT_TITLE[o.verdict]}${confidence} | ${String(o.reason).replace(/\|/g, '/')} |`);
+      lines.push(`| ${o.fixture.id} ${names(o.fixture)} | ${VERDICT_TITLE[o.verdict]}${confidence} | ${oneLine(o.reason).replace(/\|/g, '/')} |`);
     }
     lines.push('');
   }

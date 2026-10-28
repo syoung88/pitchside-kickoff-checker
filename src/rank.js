@@ -5,7 +5,10 @@ const ACTIONABLE = new Set(['change_recommended', 'needs_review']);
 
 export function hoursToKickoff({ feedUtc, suggestedUtc, asOf }) {
   const times = [feedUtc, suggestedUtc].filter(Boolean).map(Date.parse);
-  return (Math.min(...times) - Date.parse(asOf)) / HOUR_MS;
+  const now = Date.parse(asOf);
+  const hours = (Math.min(...times) - now) / HOUR_MS;
+  // The earlier time has passed but a later one is still ahead: the match may be about to start, so it is urgent, not past.
+  return hours < 0 && Math.max(...times) >= now ? 0 : hours;
 }
 
 export function urgencyBand(hours) {

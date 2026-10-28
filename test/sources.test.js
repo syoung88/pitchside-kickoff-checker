@@ -72,3 +72,22 @@ test('the league account counts as official for a cup the league runs, when told
   const s = classifySource(evidence, cup, ['Continental Soccer League', 'Founders Cup']);
   assert.deepEqual([s.tier, s.role, s.org], ['official', 'league', 'league']);
 });
+
+test('a verified account that merely contains a team name is not that club', () => {
+  const evidence = { id: 'z', type: 'social_post', account: { handle: '@DenverRapidsNews', display_name: 'Denver Rapids News & Rumours', verified: true }, text: 't', posted_at: '2026-06-15T00:00:00Z' };
+  const fixture = { ...fx('fx-2201'), home: 'Denver Rapids' };
+  assert.equal(classifySource(evidence, fixture).tier, 'press');
+});
+
+test('a fan site whose host contains a team name is not the club site', () => {
+  const evidence = { id: 'w', type: 'web_page', url: 'https://denverrapidsfans.com/blog', title: 'Fan blog', snippet: 's', fetched_at: '2026-06-15T00:00:00Z' };
+  const fixture = { ...fx('fx-2201'), home: 'Denver Rapids' };
+  assert.equal(classifySource(evidence, fixture).tier, 'press');
+  const club = { ...evidence, url: 'https://www.denverrapids.com/news' };
+  assert.deepEqual([classifySource(club, fixture).tier, classifySource(club, fixture).role], ['official', 'club_site']);
+});
+
+test('a press page titled with the league name on another host is not the league site', () => {
+  const evidence = { id: 'v', type: 'web_page', url: 'https://www.scorelines-weekly.com/p', title: 'Preview | Continental Soccer League', snippet: 's', fetched_at: '2026-06-15T00:00:00Z' };
+  assert.equal(classifySource(evidence, fx('fx-2201')).tier, 'press');
+});
