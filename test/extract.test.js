@@ -131,3 +131,14 @@ test('createLlmClient posts the model and schema, returns the content and retrie
   assert.equal(body.response_format.json_schema.strict, true);
   assert.deepEqual(body.messages.map((m) => m.role), ['system', 'user']);
 });
+
+test('the prompt gives the model the competition and who posted, and judges "same match" by opponent not date', async () => {
+  const llm = fakeLlm();
+  await extractClaim({ fixture, evidence, llm, cache: createCache(tmp()), model: 'm' });
+  const { system, user } = llm.calls[0];
+  assert.match(user, /Competition: Continental Soccer League/);
+  assert.match(user, /Posted by: Harbour City FC \(@HarbourCityFC\)/);
+  assert.match(system, /not by date or weekday/i);
+  assert.match(system, /different opponent/i);
+  assert.equal(PROMPT_VERSION, 'v2');
+});

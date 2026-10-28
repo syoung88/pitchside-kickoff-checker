@@ -179,3 +179,12 @@ test('G1 is not triggered by an unreadable unofficial item', () => {
   const d = run(makeFixture(), [club('a', 'club:cactusathletic')], { unreadable: [fan] });
   assert.equal(d.verdict, 'change_recommended');
 });
+
+test('the reason reads correctly for one organisation and for several', () => {
+  const one = run(makeFixture(), [club('a', 'club:cactusathletic')]);
+  assert.match(one.reason, /\bstates\b/);
+  const utc = '2026-07-01T02:00:00Z';
+  const many = run(makeFixture(), [club('a', 'club:cactusathletic', { utc }), league('b', { utc })]);
+  assert.doesNotMatch(many.reason, /\bstates\b/);
+  assert.match(many.reason, /\bstate\b/);
+});

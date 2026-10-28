@@ -27,8 +27,8 @@ function listingResolution(claim) {
   return { utc, working: [`ScoreFeed lists ${utc}`], dateCheck: 'none', caveats: [], unusableReason: null };
 }
 
-async function buildItem(fixture, evidence, { llm, cache, model }) {
-  const source = classifySource(evidence, fixture);
+async function buildItem(fixture, evidence, { llm, cache, model, leagueNames }) {
+  const source = classifySource(evidence, fixture, leagueNames);
   if (evidence.type === 'feed_listing') {
     const claim = claimFromFeedListing(evidence);
     return { item: { evidenceId: evidence.id, at: claim.at, claim, source, resolution: listingResolution(claim) } };
@@ -65,6 +65,7 @@ export async function checkFixture(fixture, deps) {
 
 export async function runAll({ source, llm, cache, model, concurrency = 3 }) {
   const fixtures = await source.listFixtures();
-  const results = await mapLimit(fixtures, concurrency, (fixture) => checkFixture(fixture, { source, llm, cache, model }));
+  const leagueNames = [...new Set(fixtures.map((f) => f.competition).filter(Boolean))];
+  const results = await mapLimit(fixtures, concurrency, (fixture) => checkFixture(fixture, { source, llm, cache, model, leagueNames }));
   return { results, latestEvidenceAt: latestTime(results.map((r) => r.latestEvidenceAt).filter(Boolean)), sourceKind: source.kind };
 }

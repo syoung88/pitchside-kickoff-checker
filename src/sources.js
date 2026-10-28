@@ -19,7 +19,9 @@ function participant(fixture, haystacks) {
   });
 }
 
-export function classifySource(evidence, fixture) {
+// leagueNames: competitions known to the monitored feed; a league's own account is official for any of them.
+export function classifySource(evidence, fixture, leagueNames = [fixture.competition]) {
+  const isLeagueName = (name) => leagueNames.some((league) => norm(league) === norm(name));
   if (evidence.type === 'feed_listing') {
     return { tier: 'aggregator', role: 'aggregator', org: null, label: `${evidence.provider ?? 'ScoreFeed'} (aggregator)` };
   }
@@ -27,7 +29,7 @@ export function classifySource(evidence, fixture) {
   if (evidence.type === 'social_post') {
     const { handle, display_name: name, verified } = evidence.account ?? {};
     if (!verified) return { tier: 'unofficial', role: 'unofficial', org: null, label: `${name ?? handle} (unverified account)` };
-    if (norm(name) === norm(fixture.competition)) {
+    if (isLeagueName(name)) {
       return { tier: 'official', role: 'league', org: 'league', label: `${name} (league, verified)` };
     }
     const team = participant(fixture, [handle, name]);
@@ -37,8 +39,8 @@ export function classifySource(evidence, fixture) {
 
   if (evidence.type === 'web_page') {
     const host = hostOf(evidence.url);
-    if (norm(lastTitleSegment(evidence.title)) === norm(fixture.competition)) {
-      return { tier: 'official', role: 'league', org: 'league', label: `${fixture.competition} (league site)` };
+    if (isLeagueName(lastTitleSegment(evidence.title))) {
+      return { tier: 'official', role: 'league', org: 'league', label: `${lastTitleSegment(evidence.title)} (league site)` };
     }
     const team = participant(fixture, [host]);
     if (team) return { tier: 'official', role: 'club_site', org: `club:${teamKey(team)}`, label: `${host} (club site)` };

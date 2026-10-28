@@ -63,3 +63,12 @@ test('a press page that merely mentions the competition is not the league site',
   const evidence = { id: 'y', type: 'web_page', url: 'https://www.scorelines-weekly.com/a', title: 'Preview of the Continental Soccer League weekend', snippet: 's', fetched_at: '2026-06-15T00:00:00Z' };
   assert.equal(classifySource(evidence, fx('fx-2201')).tier, 'press');
 });
+
+test('the league account counts as official for a cup the league runs, when told the monitored competitions', () => {
+  const evidence = ev('fx-2208', 'ev-2208-a');
+  const cup = fx('fx-2208');
+  assert.equal(cup.competition, 'Founders Cup');
+  assert.equal(classifySource(evidence, cup).tier, 'press', 'with no extra league names the account is unaffiliated');
+  const s = classifySource(evidence, cup, ['Continental Soccer League', 'Founders Cup']);
+  assert.deepEqual([s.tier, s.role, s.org], ['official', 'league', 'league']);
+});

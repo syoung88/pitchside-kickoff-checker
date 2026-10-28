@@ -149,12 +149,13 @@ function decideFromOfficial(ctx, usable) {
   for (const p of supporting) used.set(p.evidenceId, 'press source agrees; supports the official statement');
   const confidence = winners.length >= 2 || supporting.length > 0 ? 'high' : 'medium';
   const names = winners.map((w) => w.source.label).join(', ');
+  const verb = winners.length === 1 ? 'states' : 'state';
   if (sameInstant(agreed, fixture.kickoff_utc)) {
     return result(ctx, { verdict: 'confirmed', rule: 'R5', confidence, used, notUsed,
-      reason: `${names} state the same time as the feed (${agreed})` });
+      reason: `${names} ${verb} the same time as the feed (${agreed})` });
   }
   return result(ctx, { verdict: 'change_recommended', rule: 'R5', suggestedUtc: agreed, confidence, used, notUsed,
-    reason: `${names} state ${agreed}, but the feed has ${fixture.kickoff_utc}` });
+    reason: `${names} ${verb} ${agreed}, but the feed has ${fixture.kickoff_utc}` });
 }
 
 const GUARDED = new Set(['confirmed', 'change_recommended', 'insufficient_evidence']);

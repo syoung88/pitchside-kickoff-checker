@@ -1,0 +1,16 @@
+{
+  "evidence_id": "ev-2202-c",
+  "model": "gpt-4.1-mini",
+  "prompt_version": "v2",
+  "response": {
+    "about_this_fixture": "yes",
+    "kickoff_time_24h": "21:00",
+    "timezone_stated": "Eastern",
+    "date_text": "Saturday night",
+    "is_postponement_or_cancellation": false,
+    "is_rumour_or_unconfirmed": false,
+    "is_tbc": false,
+    "quote": "kickoff set for 9 PM Eastern",
+    "ignored_times": []
+  }
+}
