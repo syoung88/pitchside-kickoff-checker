@@ -10,8 +10,5 @@
   "scripts": {
     "start": "node index.js",
     "test": "node --test"
-  },
-  "dependencies": {
-    "openai": "^7.45.1"
   }
 }
