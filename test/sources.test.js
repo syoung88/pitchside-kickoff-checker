@@ -91,3 +91,14 @@ test('a press page titled with the league name on another host is not the league
   const evidence = { id: 'v', type: 'web_page', url: 'https://www.scorelines-weekly.com/p', title: 'Preview | Continental Soccer League', snippet: 's', fetched_at: '2026-06-15T00:00:00Z' };
   assert.equal(classifySource(evidence, fx('fx-2201')).tier, 'press');
 });
+
+test('club sites on multi-part domains and subdomains are still the club site', () => {
+  const fixture = { ...fx('fx-2201'), home: 'Denver Rapids' };
+  const page = (url) => ({ id: 'w', type: 'web_page', url, title: 'Match centre', snippet: 's', fetched_at: '2026-06-15T00:00:00Z' });
+  for (const url of ['https://www.denverrapids.co.uk/fixtures', 'https://denverrapids.com.au/', 'https://tickets.denverrapids.com/match']) {
+    assert.deepEqual([classifySource(page(url), fixture).tier, classifySource(page(url), fixture).role], ['official', 'club_site'], url);
+  }
+  // A subdomain of a hosting platform is whatever the blogger called it, not the club.
+  assert.equal(classifySource(page('https://denverrapids.blogspot.com/p'), fixture).tier, 'press');
+  assert.equal(classifySource(page('https://denverrapidsnews.co.uk/p'), fixture).tier, 'press');
+});

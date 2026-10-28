@@ -31,12 +31,12 @@ async function buildItem(fixture, evidence, { llm, cache, model, leagueNames }) 
   const source = classifySource(evidence, fixture, leagueNames);
   if (evidence.type === 'feed_listing') {
     const claim = claimFromFeedListing(evidence);
-    return { item: { evidenceId: evidence.id, at: claim.at, claim, source, resolution: listingResolution(claim) } };
+    return { item: { evidenceId: evidence.id, type: evidence.type, at: claim.at, claim, source, resolution: listingResolution(claim) } };
   }
   const extracted = await extractClaim({ fixture, evidence, llm, cache, model });
   if (extracted.status === 'failed') return { unreadable: { evidenceId: evidence.id, source, reason: extracted.reason } };
   const { claim } = extracted;
-  return { item: { evidenceId: evidence.id, at: claim.at, claim, source, resolution: resolveClaimTime(claim, fixture) } };
+  return { item: { evidenceId: evidence.id, type: evidence.type, at: claim.at, claim, source, resolution: resolveClaimTime(claim, fixture) } };
 }
 
 export async function checkFixture(fixture, deps) {

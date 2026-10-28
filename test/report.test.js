@@ -91,10 +91,21 @@ test('could-not-check fixtures are called out in the header and listed with thei
   assert.match(md, /fx-2201[^\n]*API unavailable \(HTTP 503\)/);
 });
 
-test('a fixture already kicked off is listed as past kickoff and not counted as actionable', () => {
-  const md = renderMarkdown(buildReportModel(nine(), { asOf: '2026-06-20T23:00:00Z', sourceKind: 'live' }));
-  assert.match(md, /past kickoff, not actionable/i);
-  assert.match(md, /5 need action/);
+test('a past-kickoff fixture with a verdict is shown in full, first, and counted as need action', () => {
+  const m = buildReportModel(nine(), { asOf: '2026-06-20T23:00:00Z', sourceKind: 'live' });
+  const md = renderMarkdown(m);
+  assert.equal(m.actionable[0].fixture.id, 'fx-2201');
+  assert.equal(m.actionable[0].urgency.band, 'past');
+  assert.equal(m.tally.past_kickoff, 1);
+  assert.match(md, /6 need action/);
+  assert.match(md, /### 1\. [^\n]*fx-2201[^\n]*\nKicked off 3h ago · PAST KICKOFF/);
+  assert.match(md, /- Why: reason for fx-2201/);
+});
+
+test('urgency line uses minutes below an hour and never rounds up', () => {
+  const at = (asOf) => renderMarkdown(buildReportModel(nine(), { asOf, sourceKind: 'live' }));
+  assert.match(at('2026-06-20T19:40:00Z'), /Kicks off in 20 min · CRITICAL/);
+  assert.match(at('2026-06-19T20:24:00Z'), /Kicks off in 23h · CRITICAL/);
 });
 
 test('others table gives a one-line reason for each non-actionable fixture', () => {

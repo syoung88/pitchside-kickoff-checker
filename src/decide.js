@@ -1,5 +1,16 @@
 const at = (item) => Date.parse(item.at);
 
+// A web page's timestamp is when we crawled it, not when it was published, so only posts can be ordered in time.
+const ordered = (i) => i.type !== 'web_page';
+const laterPost = (a, b) => ordered(a) && ordered(b) && at(a) > at(b);
+const isFirm = (i) => !i.claim.isRumour && Boolean(i.claim.isPostponement || i.claim.isTbc || i.resolution.utc);
+const stance = (i) => (i.claim.isTbc ? 'TBC' : String(Date.parse(i.resolution.utc)));
+const stanceLabel = (i) => (i.claim.isTbc ? 'TBC' : i.resolution.utc);
+
+// Later firm statement from the same organisation that overrides `item`, if the two can be ordered.
+const supersededBy = (item, pool, accept = () => true) =>
+  pool.find((o) => o !== item && o.source.org === item.source.org && isFirm(o) && accept(o) && laterPost(o, item));
+
 function line(item, note) {
   return {
     evidenceId: item.evidenceId,
@@ -22,13 +33,14 @@ function notUsedNote(item, fixture) {
   }
   if (source.tier === 'unofficial') return 'unofficial source; cannot justify a change on its own';
   if (source.tier === 'press') return 'press source; supports other evidence but is not decisive';
+  if (claim.isRumour) return 'unconfirmed or rumoured; not used as a kickoff time';
   if (claim.isPostponement) return 'postponement notice, not a kickoff time';
   if (claim.isTbc) return 'TBC notice superseded by a later official statement';
   return resolution.unusableReason ?? 'not decisive';
 }
 
 // Builds the used / not-used lists so every piece of evidence appears exactly once.
-function account({ fixture, items, unreadable, skipped }, usedNotes, notUsedNotes = new Map()) {
+function account({ fixture, items, unreadable, skipped }, usedNotes, notUsedNotes) {
   const evidenceUsed = [];
   const evidenceNotUsed = [];
   for (const item of items) {
@@ -47,12 +59,12 @@ function account({ fixture, items, unreadable, skipped }, usedNotes, notUsedNote
   return { evidenceUsed, evidenceNotUsed, caveats };
 }
 
-function result(ctx, { verdict, rule, reason, suggestedUtc = null, confidence = null, used = new Map(), notUsed }) {
-  return { verdict, rule, suggestedUtc, confidence, reason, ...account(ctx, used, notUsed) };
+function result(ctx, { verdict, rule, reason, suggestedUtc = null, confidence = null, used = new Map(), notUsed = new Map() }) {
+  return { verdict, rule, suggestedUtc, confidence, reason, ...account(ctx, used, new Map([...ctx.baseNotes, ...notUsed])) };
 }
 
 function decideCore({ fixture, items, unreadable = [], skipped = [] }) {
-  const ctx = { fixture, items, unreadable, skipped };
+  const ctx = { fixture, items, unreadable, skipped, baseNotes: new Map() };
 
   if (fixture.status !== 'scheduled') {
     return { verdict: 'out_of_scope', rule: 'R1', suggestedUtc: null, confidence: null,
@@ -62,7 +74,13 @@ function decideCore({ fixture, items, unreadable = [], skipped = [] }) {
 
   const official = items.filter((i) => i.source.tier === 'official' && i.claim.aboutFixture === 'yes');
 
-  const postponements = official.filter((i) => i.claim.isPostponement);
+  // A postponement stays live unless the same organisation later posted a firm time or TBC notice (a reinstatement).
+  const postponements = [];
+  for (const i of official.filter((x) => x.claim.isPostponement && !x.claim.isRumour)) {
+    const later = supersededBy(i, official, (o) => !o.claim.isPostponement);
+    if (later) ctx.baseNotes.set(i.evidenceId, `postponement superseded by a later post from ${later.source.label} (${later.at})`);
+    else postponements.push(i);
+  }
   if (postponements.length > 0) {
     const first = postponements[0];
     return result(ctx, {
@@ -72,8 +90,24 @@ function decideCore({ fixture, items, unreadable = [], skipped = [] }) {
     });
   }
 
-  const statements = official.filter((i) => i.claim.isTbc || i.resolution.utc);
-  const latest = statements.reduce((best, i) => (!best || at(i) > at(best) || (at(i) === at(best) && i.claim.isTbc) ? i : best), null);
+  const statements = official.filter((i) => !i.claim.isRumour && (i.claim.isTbc || i.resolution.utc));
+  const byOrgStatements = new Map();
+  for (const i of statements) byOrgStatements.set(i.source.org, [...(byOrgStatements.get(i.source.org) ?? []), i]);
+  const winners = [];
+  for (const group of byOrgStatements.values()) {
+    const winner = latestOf(group);
+    winners.push(winner);
+    const clash = group.find((i) => !ordered(i) && i !== winner && stance(i) !== stance(winner));
+    if (clash) {
+      return result(ctx, {
+        verdict: 'needs_review', rule: 'R9', suggestedUtc: winner.resolution.utc ?? null,
+        reason: `${clash.source.label} says ${stanceLabel(clash)} but ${winner.source.label} says ${stanceLabel(winner)}; a web page has no publish date, so the tool cannot tell which is newer`,
+        used: new Map([[winner.evidenceId, `states ${stanceLabel(winner)}`], [clash.evidenceId, `undated web page says ${stanceLabel(clash)}; cannot be ordered against the post`]]),
+      });
+    }
+  }
+  // An undated page can't be placed after or before another organisation's post, so a TBC page always forces review.
+  const latest = winners.find((w) => w.claim.isTbc && !ordered(w)) ?? latestOf(winners);
   if (latest?.claim.isTbc) {
     return result(ctx, {
       verdict: 'needs_review', rule: 'R7',
@@ -82,7 +116,7 @@ function decideCore({ fixture, items, unreadable = [], skipped = [] }) {
     });
   }
 
-  const usable = official.filter((i) => i.resolution.utc && !i.claim.isPostponement && !i.claim.isTbc);
+  const usable = official.filter((i) => i.resolution.utc && !i.claim.isPostponement && !i.claim.isTbc && !i.claim.isRumour);
   if (usable.length > 0) return decideFromOfficial(ctx, usable);
 
   const differing = items.find((i) => i.source.tier === 'aggregator' && i.resolution.utc
@@ -98,8 +132,16 @@ function decideCore({ fixture, items, unreadable = [], skipped = [] }) {
   });
 }
 
-const latestOf = (list) => list.reduce((best, i) =>
-  (!best || at(i) > at(best) || (at(i) === at(best) && i.evidenceId > best.evidenceId) ? i : best), null);
+// Posts are ordered by when they were posted; an undated page only wins if nothing else is available.
+function latestOf(list) {
+  return list.reduce((best, i) => {
+    if (!best) return i;
+    if (ordered(i) !== ordered(best)) return ordered(i) ? i : best;
+    if (at(i) !== at(best)) return at(i) > at(best) ? i : best;
+    if (Boolean(i.claim.isTbc) !== Boolean(best.claim.isTbc)) return i.claim.isTbc ? i : best;
+    return i.evidenceId > best.evidenceId ? i : best;
+  }, null);
+}
 const sameInstant = (a, b) => Date.parse(a) === Date.parse(b);
 
 // R3 (latest claim per organisation), R6 (date check), R4 (organisations disagree), R5 (agree).
@@ -158,6 +200,25 @@ function decideFromOfficial(ctx, usable) {
     reason: `${names} ${verb} ${agreed}, but the feed has ${fixture.kickoff_utc}` });
 }
 
+// G2: an official rumour that nothing firmer from the same organisation has replaced, and that points away from the
+// verdict's time (or at a postponement), means the tool cannot confirm, change or call "insufficient".
+function withRumourGuard({ fixture, items }, base) {
+  const official = items.filter((i) => i.source.tier === 'official' && i.claim.aboutFixture === 'yes');
+  const compareTo = base.suggestedUtc ?? fixture.kickoff_utc;
+  const live = official.filter((i) => i.claim.isRumour && !supersededBy(i, official)
+    && (i.claim.isPostponement || (i.resolution.utc && !sameInstant(i.resolution.utc, compareTo))));
+  if (live.length === 0) return base;
+  const ids = new Set(live.map((i) => i.evidenceId));
+  const moved = base.evidenceNotUsed.filter((l) => ids.has(l.evidenceId))
+    .map((l) => ({ ...l, note: 'unconfirmed claim: not used as evidence, but it signals a possible change' }));
+  const first = live[0];
+  const what = first.claim.isPostponement ? 'a possible postponement' : `${first.resolution.utc}`;
+  return { ...base, verdict: 'needs_review', rule: 'G2', suggestedUtc: null, confidence: null,
+    evidenceUsed: [...base.evidenceUsed, ...moved],
+    evidenceNotUsed: base.evidenceNotUsed.filter((l) => !ids.has(l.evidenceId)),
+    reason: `${first.source.label} hints at ${what} but marks it unconfirmed; the tool cannot rely on it, but it cannot rule out a change either, so a person should check; without it the verdict would have been "${base.verdict.replace('_', ' ')}"` };
+}
+
 const GUARDED = new Set(['confirmed', 'change_recommended', 'insufficient_evidence']);
 
 // G1: never confirm, change or call "insufficient" while an official post could not be read.
@@ -171,7 +232,7 @@ export function decide(input) {
       && !i.claim.isPostponement && !i.claim.isTbc)
     .map((i) => i.evidenceId);
   const ids = [...unreadable, ...unclear, ...unresolved];
-  if (ids.length === 0) return base;
+  if (ids.length === 0) return withRumourGuard(input, base);
   return { ...base, verdict: 'needs_review', rule: 'G1', suggestedUtc: null, confidence: null,
     reason: `An official post (${ids.join(', ')}) could not be read or converted, so the tool cannot rule out a change; without it the verdict would have been "${base.verdict.replace('_', ' ')}"` };
 }

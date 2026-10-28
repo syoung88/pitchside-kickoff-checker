@@ -8,6 +8,13 @@ const STATED_ZONES = {
   mt: 'America/Denver', mountain: 'America/Denver', mdt: 'America/Denver',
   pt: 'America/Los_Angeles', pacific: 'America/Los_Angeles', pdt: 'America/Los_Angeles',
   mst: 'MST', // literal Mountain Standard Time: fixed UTC-7, as Arizona uses all year
+  // Named zones with a fixed offset (Etc/GMT signs are inverted); "standard" and "daylight" spell out which one.
+  utc: 'UTC', gmt: 'Etc/GMT', bst: 'Etc/GMT-1', cet: 'Etc/GMT-1', cest: 'Etc/GMT-2',
+  est: 'Etc/GMT+5', cst: 'Etc/GMT+6', pst: 'Etc/GMT+8',
+  'eastern standard': 'Etc/GMT+5', 'eastern daylight': 'Etc/GMT+4',
+  'central standard': 'Etc/GMT+6', 'central daylight': 'Etc/GMT+5',
+  'mountain standard': 'MST', 'mountain daylight': 'Etc/GMT+6',
+  'pacific standard': 'Etc/GMT+8', 'pacific daylight': 'Etc/GMT+7',
 };
 
 const CITY_ZONES = {
@@ -73,7 +80,13 @@ const WEEKDAYS = {
   thursday: 4, jueves: 4, friday: 5, viernes: 5, saturday: 6, sabado: 6,
 };
 const MONTHS = ['january', 'february', 'march', 'april', 'may', 'june', 'july', 'august', 'september', 'october', 'november', 'december'];
-const MONTH_PATTERN = `(${MONTHS.join('|')}|${MONTHS.map((m) => m.slice(0, 3)).join('|')})`;
+const SPANISH_MONTHS = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
+const MONTH_INDEX = new Map([
+  ...MONTHS.flatMap((m, i) => [[m, i], [m.slice(0, 3), i]]),
+  ...SPANISH_MONTHS.map((m, i) => [m, i]),
+  ['setiembre', 8],
+]);
+const MONTH_PATTERN = `(${[...MONTH_INDEX.keys()].sort((x, y) => y.length - x.length).join('|')})`;
 
 const plain = (text) => text.normalize('NFD').replace(/\p{M}/gu, '').toLowerCase();
 
@@ -83,18 +96,33 @@ export function parseWeekday(text) {
   return m ? WEEKDAYS[m[1]] : null;
 }
 
-export function parseExplicitDate(text, year) {
+const pad2 = (n) => String(n).padStart(2, '0');
+const daysIn = (year, month) => new Date(Date.UTC(year, month, 0)).getUTCDate();
+// A number that is really a clock time ("may 7:30", "7 pm", "at 7 may") is not a day of the month.
+const looksLikeClock = (t, end, start) => /^\s*(:\d|\.\d\d|\s?[ap]\.?m\b|h\b)/.test(t.slice(end)) || /\b(at|@|a las)\s*$/.test(t.slice(0, start));
+
+// Returns YYYY-MM-DD, taking the year (this, last or next) that puts the date nearest `nearYmd`; null if no valid date is named.
+export function parseExplicitDate(text, nearYmd) {
   if (!text) return null;
   const t = plain(text);
-  const dayFirst = t.match(new RegExp(`\\b(\\d{1,2})(?:st|nd|rd|th)?\\s+${MONTH_PATTERN}\\b`));
-  const monthFirst = t.match(new RegExp(`\\b${MONTH_PATTERN}\\s+(\\d{1,2})\\b`));
+  const dayFirst = new RegExp(`\\b(\\d{1,2})(?:st|nd|rd|th)?\\s+(?:de\\s+)?${MONTH_PATTERN}\\b`).exec(t);
+  const monthFirst = new RegExp(`\\b${MONTH_PATTERN}\\s+(\\d{1,2})\\b`).exec(t);
   let day;
   let month;
-  if (dayFirst) [day, month] = [dayFirst[1], dayFirst[2]];
-  else if (monthFirst) [month, day] = [monthFirst[1], monthFirst[2]];
+  let found;
+  if (dayFirst) [found, day, month] = [dayFirst, dayFirst[1], dayFirst[2]];
+  else if (monthFirst) [found, month, day] = [monthFirst, monthFirst[1], monthFirst[2]];
   else return null;
-  const index = MONTHS.findIndex((m) => m === month || m.slice(0, 3) === month);
-  return `${year}-${String(index + 1).padStart(2, '0')}-${day.padStart(2, '0')}`;
+  const numberStart = found.index + (found === dayFirst ? 0 : found[0].length - day.length);
+  if (looksLikeClock(t, numberStart + day.length, numberStart)) return null;
+  const monthNumber = MONTH_INDEX.get(month) + 1;
+  const near = Date.parse(`${nearYmd}T00:00:00Z`);
+  const year = Number(nearYmd.slice(0, 4));
+  const candidates = [year - 1, year, year + 1]
+    .filter((y) => Number(day) >= 1 && Number(day) <= daysIn(y, monthNumber))
+    .map((y) => `${y}-${pad2(monthNumber)}-${pad2(day)}`);
+  candidates.sort((x, y) => Math.abs(Date.parse(`${x}T00:00:00Z`) - near) - Math.abs(Date.parse(`${y}T00:00:00Z`) - near));
+  return candidates[0] ?? null;
 }
 
 const addDays = (ymd, days) => toIsoZ(new Date(Date.parse(`${ymd}T00:00:00Z`) + days * 86400000)).slice(0, 10);
@@ -110,8 +138,10 @@ export function resolveClaimTime(claim, fixture) {
   if (zone.error) return unusable(zone.error);
 
   const feedLocal = utcToLocal(fixture.kickoff_utc, venueTz);
-  const explicit = parseExplicitDate(claim.dateText, Number(feedLocal.ymd.slice(0, 4)));
+  const explicit = parseExplicitDate(claim.dateText, feedLocal.ymd);
   const weekday = parseWeekday(claim.dateText);
+  // Wording like "tomorrow" or "next Friday" is not resolved here; applying the time to the feed's date would be a guess.
+  if (claim.dateText?.trim() && !explicit && weekday === null) return unusable(`date wording not understood: "${claim.dateText}"`);
   const ymd = explicit ?? feedLocal.ymd;
   const utc = localToUtc(ymd, claim.timeLocal, zone.tz);
 

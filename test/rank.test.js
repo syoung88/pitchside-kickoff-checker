@@ -58,11 +58,12 @@ test('ties: needs review first, then higher confidence, then fixture id', () => 
   assert.deepEqual(actionable.map((r) => r.result.fixture.id), ['fx-4', 'fx-1', 'fx-2', 'fx-3']);
 });
 
-test('a fixture that has already kicked off is listed as past, not actionable', () => {
-  const { actionable, past } = rankResults([res('fx-1', 'change_recommended', '2026-06-19T20:00:00Z', null, 'high')], AS_OF);
-  assert.equal(actionable.length, 0);
-  assert.equal(past.length, 1);
-  assert.equal(past[0].band, 'past');
+test('a fixture that has already kicked off is actionable and ranks above upcoming ones', () => {
+  const { actionable } = rankResults([
+    res('fx-2', 'change_recommended', '2026-06-20T10:00:00Z', null, 'high'),
+    res('fx-1', 'needs_review', '2026-06-19T20:00:00Z'),
+  ], AS_OF);
+  assert.deepEqual(actionable.map((r) => [r.result.fixture.id, r.band]), [['fx-1', 'past'], ['fx-2', 'critical']]);
 });
 
 test('could-not-check results go to others', () => {
@@ -74,8 +75,7 @@ test('could-not-check results go to others', () => {
 
 test('a feed time that has passed but a suggested time still ahead is urgent, not past', () => {
   const r = res('fx-1', 'change_recommended', '2026-06-20T19:00:00Z', '2026-06-20T22:00:00Z', 'high');
-  const { actionable, past } = rankResults([r], '2026-06-20T20:00:00Z');
-  assert.equal(past.length, 0);
+  const { actionable } = rankResults([r], '2026-06-20T20:00:00Z');
   assert.equal(actionable[0].hours, 0);
   assert.equal(actionable[0].band, 'critical');
   assert.equal(hoursToKickoff({ feedUtc: '2026-06-20T19:00:00Z', suggestedUtc: '2026-06-20T18:00:00Z', asOf: '2026-06-20T20:00:00Z' }) < 0, true);

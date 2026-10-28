@@ -1,5 +1,6 @@
 const HOUR_MS = 3600000;
-const BAND_ORDER = { critical: 0, soon: 1, later: 2 };
+// Past-kickoff items lead the list: the feed's time has already passed, so unresolved evidence affects consumers now.
+const BAND_ORDER = { past: -1, critical: 0, soon: 1, later: 2 };
 const CONFIDENCE_ORDER = { high: 0, medium: 1 };
 const ACTIONABLE = new Set(['change_recommended', 'needs_review']);
 
@@ -32,7 +33,6 @@ function compare(a, b) {
 
 export function rankResults(results, asOf) {
   const actionable = [];
-  const past = [];
   const others = [];
   for (const result of results) {
     if (result.status !== 'checked' || !ACTIONABLE.has(result.decision.verdict)) {
@@ -41,11 +41,10 @@ export function rankResults(results, asOf) {
     }
     const hours = hoursToKickoff({ feedUtc: result.fixture.kickoff_utc, suggestedUtc: result.decision.suggestedUtc, asOf });
     const item = { result, hours, band: urgencyBand(hours), beyondGuide: false };
-    (item.band === 'past' ? past : actionable).push(item);
+    actionable.push(item);
   }
   actionable.sort(compare);
   actionable.forEach((item, index) => { item.beyondGuide = index >= 5; });
-  past.sort(compare);
   others.sort(byId);
-  return { actionable, others, past };
+  return { actionable, others };
 }

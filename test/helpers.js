@@ -17,13 +17,14 @@ export function makeItem({
   id, at = '2026-06-19T17:40:00Z', tier = 'official', role = 'club', org = 'club:cactusathletic',
   label = `${id} source`, utc = '2026-07-01T02:00:00Z', aboutFixture = 'yes', isPostponement = false,
   isTbc = false, dateCheck = 'ok', caveats = [], unusableReason, quote = `quote for ${id}`, ignoredTimes = [],
-  timeLocal = utc ? '19:00' : null,
+  timeLocal = utc ? '19:00' : null, isRumour = false, type = 'social_post',
 } = {}) {
   return {
     evidenceId: id,
+    type,
     at,
     claim: { evidenceId: id, at, aboutFixture, timeLocal, zoneText: null, dateText: null,
-      isPostponement, isRumour: false, isTbc, quote, ignoredTimes },
+      isPostponement, isRumour, isTbc, quote, ignoredTimes },
     source: { tier, role, org, label },
     resolution: { utc, working: utc ? [`${id} -> ${utc}`] : [], dateCheck, caveats,
       unusableReason: unusableReason ?? (utc ? null : 'no kickoff time stated') },

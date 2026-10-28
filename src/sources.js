@@ -25,7 +25,14 @@ function isTeamName(candidate, team) {
 const participant = (fixture, candidates) =>
   [fixture.home, fixture.away].find((team) => candidates.some((c) => isTeamName(c, team)));
 
-const hostLabel = (host) => host.split('.').slice(0, -1).join('');
+// Registrable name of a host: "denverrapids" for denverrapids.com, tickets.denverrapids.com and denverrapids.co.uk.
+// Subdomains are ignored, so a fan blog at denverrapids.blogspot.com is not mistaken for the club's own site.
+const SECOND_LEVEL = new Set(['co', 'com', 'org', 'net', 'ac', 'gov', 'edu']);
+function hostLabel(host) {
+  const labels = host.split('.');
+  const suffix = labels.length > 2 && labels.at(-1).length === 2 && SECOND_LEVEL.has(labels.at(-2)) ? 2 : 1;
+  return labels.at(-1 - suffix) ?? '';
+}
 const initials = (name) => name.split(/\s+/).map((w) => w[0]).join('').toLowerCase();
 
 // A league site names the league in its title AND lives on a host that looks like the league's

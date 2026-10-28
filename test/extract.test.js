@@ -151,3 +151,25 @@ test('validateClaim requires the quote to contain the stated hour', () => {
   assert.equal(validateClaim({ ...good, kickoff_time_24h: '22:00', quote: '10 PM Eastern' }, '10 PM Eastern').ok, true);
   assert.equal(validateClaim({ ...good, kickoff_time_24h: '12:00', quote: 'kicks off at noon' }, 'kicks off at noon').ok, true);
 });
+
+test('validateClaim matches hour and minutes together, not just the hour', () => {
+  const text = 'Kickoff 7:45 PM tonight';
+  assert.equal(validateClaim({ ...good, kickoff_time_24h: '19:15', quote: 'Kickoff 7:45 PM' }, text).ok, false);
+  assert.equal(validateClaim({ ...good, kickoff_time_24h: '19:45', quote: 'Kickoff 7:45 PM' }, text).ok, true);
+  assert.equal(validateClaim({ ...good, kickoff_time_24h: '07:45', quote: 'Kickoff 7:45 PM' }, text).ok, false);
+  assert.equal(validateClaim({ ...good, kickoff_time_24h: '19:30', quote: 'a las 19:30 h' }, 'a las 19:30 h').ok, true);
+});
+
+test('validateClaim rejects a gate time returned as the kickoff, even when the quote contains it', () => {
+  const text = 'Gates 5:30 PM, kickoff 7 PM';
+  assert.equal(validateClaim({ ...good, kickoff_time_24h: '17:30', quote: 'Gates 5:30 PM', ignored_times: ['5:30 PM'] }, text).ok, false);
+  assert.equal(validateClaim({ ...good, kickoff_time_24h: '19:00', quote: 'kickoff 7 PM', ignored_times: ['5:30 PM'] }, text).ok, true);
+  assert.equal(validateClaim({ ...good, kickoff_time_24h: '17:00', quote: 'Gates 5:30 PM' }, text).ok, false);
+});
+
+test('validateClaim does not treat an official TBC notice as a rumour', () => {
+  const text = 'Kickoff times remain TBC';
+  const raw = { ...good, kickoff_time_24h: null, quote: null, is_tbc: true, is_rumour_or_unconfirmed: true };
+  assert.equal(validateClaim(raw, text).claim.isRumour, false);
+  assert.equal(validateClaim({ ...raw, is_tbc: false }, text).claim.isRumour, true);
+});

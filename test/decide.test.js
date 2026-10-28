@@ -197,3 +197,81 @@ test('G1: an official claim with a stated time that could not be resolved is nev
   const alone = run(makeFixture(), [unresolved]);
   assert.deepEqual([alone.verdict, alone.rule], ['needs_review', 'G1']);
 });
+
+// Org-aware builders for the ordering, rumour and supersession rules.
+const club2 = (id, o = {}) => makeItem({ id, org: 'club:cactusathletic', ...o });
+const page = (id, o = {}) => makeItem({ id, type: 'web_page', role: 'club_site', org: 'club:cactusathletic', ...o });
+const FEED_7 = makeFixture({ kickoff_utc: '2026-07-01T02:00:00Z' });
+
+test('R9: a re-fetched club page that disagrees with an earlier club post cannot supersede it and goes to review', () => {
+  const post = club2('post', { at: '2026-06-19T10:00:00Z', utc: '2026-07-01T03:00:00Z' });
+  const stalePage = page('page', { at: '2026-06-19T12:00:00Z', utc: '2026-07-01T02:00:00Z' });
+  const d = run(FEED_7, [post, stalePage]);
+  assert.deepEqual([d.verdict, d.rule], ['needs_review', 'R9']);
+  assert.equal(d.suggestedUtc, '2026-07-01T03:00:00Z');
+  assert.match(d.reason, /no publish date/);
+  assert.deepEqual(d.evidenceUsed.map((l) => l.evidenceId).sort(), ['page', 'post']);
+});
+
+test('R9: a page that disagrees with a newer post is also a review, and two differing pages cannot be ordered', () => {
+  const post = club2('post', { at: '2026-06-19T12:00:00Z', utc: '2026-07-01T03:00:00Z' });
+  const old = page('page', { at: '2026-06-19T10:00:00Z', utc: '2026-07-01T02:00:00Z' });
+  assert.equal(run(FEED_7, [post, old]).rule, 'R9');
+  const pages = run(FEED_7, [page('p1', { at: '2026-06-19T10:00:00Z', utc: '2026-07-01T03:00:00Z' }), page('p2', { at: '2026-06-19T11:00:00Z', utc: '2026-07-01T02:00:00Z' })]);
+  assert.equal(pages.rule, 'R9');
+});
+
+test('a page that agrees with the latest post is counted once and does not trigger review', () => {
+  const d = run(FEED_7, [club2('post', { at: '2026-06-19T10:00:00Z', utc: '2026-07-01T03:00:00Z' }), page('page', { at: '2026-06-19T12:00:00Z', utc: '2026-07-01T03:00:00Z' })]);
+  assert.deepEqual([d.verdict, d.rule], ['change_recommended', 'R5']);
+  assert.equal(d.evidenceUsed.length, 2);
+});
+
+test('R9: a TBC page and a club post with a time cannot be ordered either', () => {
+  const tbc = makeItem({ id: 'lg', type: 'web_page', role: 'league', org: 'league', isTbc: true, utc: null, at: '2026-06-19T09:00:00Z' });
+  const d = run(FEED_7, [tbc, club2('post', { at: '2026-06-19T12:00:00Z', utc: '2026-07-01T02:00:00Z' })]);
+  assert.deepEqual([d.verdict, d.rule], ['needs_review', 'R7']);
+});
+
+test('G2: a live official rumour that differs from the feed forces review instead of confirming', () => {
+  const firm = club2('firm', { at: '2026-06-18T10:00:00Z', utc: '2026-07-01T02:00:00Z' });
+  const rumour = club2('rumour', { at: '2026-06-19T10:00:00Z', utc: '2026-07-01T04:00:00Z', isRumour: true });
+  const d = run(FEED_7, [firm, rumour]);
+  assert.deepEqual([d.verdict, d.rule, d.suggestedUtc], ['needs_review', 'G2', null]);
+  assert.match(d.reason, /unconfirmed/);
+  assert.match(d.reason, /"confirmed"/);
+  assert.ok(d.evidenceUsed.some((l) => l.evidenceId === 'rumour'));
+});
+
+test('a rumour is never a usable time: alone it cannot produce change_recommended', () => {
+  const d = run(FEED_7, [club2('rumour', { utc: '2026-07-01T04:00:00Z', isRumour: true })]);
+  assert.notEqual(d.verdict, 'change_recommended');
+  assert.deepEqual([d.verdict, d.rule], ['needs_review', 'G2']);
+});
+
+test('a rumour that matches the feed, or has been superseded by a later firm post from the same org, is just not used', () => {
+  const matching = run(FEED_7, [club2('firm', { utc: '2026-07-01T02:00:00Z', at: '2026-06-18T10:00:00Z' }), club2('rumour', { utc: '2026-07-01T02:00:00Z', isRumour: true, at: '2026-06-19T10:00:00Z' })]);
+  assert.deepEqual([matching.verdict, matching.rule], ['confirmed', 'R5']);
+  const superseded = run(FEED_7, [club2('rumour', { utc: '2026-07-01T04:00:00Z', isRumour: true, at: '2026-06-18T10:00:00Z' }), club2('firm', { utc: '2026-07-01T02:00:00Z', at: '2026-06-19T10:00:00Z' })]);
+  assert.deepEqual([superseded.verdict, superseded.rule], ['confirmed', 'R5']);
+  assert.match(superseded.evidenceNotUsed.find((l) => l.evidenceId === 'rumour').note, /unconfirmed/);
+});
+
+test('a rumoured postponement needs review as a rumour, not as R2, unless superseded', () => {
+  const rumour = club2('rumour', { isPostponement: true, isRumour: true, utc: null, at: '2026-06-18T10:00:00Z' });
+  const d = run(FEED_7, [rumour]);
+  assert.deepEqual([d.verdict, d.rule], ['needs_review', 'G2']);
+  const later = club2('firm', { utc: '2026-07-01T02:00:00Z', at: '2026-06-19T10:00:00Z' });
+  assert.equal(run(FEED_7, [rumour, later]).verdict, 'confirmed');
+});
+
+test('R2: a postponement is superseded by a later official reinstatement from the same org', () => {
+  const postponed = club2('postponed', { isPostponement: true, utc: null, at: '2026-06-15T10:00:00Z' });
+  const back = club2('back', { utc: '2026-07-01T02:00:00Z', at: '2026-06-17T10:00:00Z' });
+  const d = run(FEED_7, [postponed, back]);
+  assert.deepEqual([d.verdict, d.rule], ['confirmed', 'R5']);
+  assert.match(d.evidenceNotUsed.find((l) => l.evidenceId === 'postponed').note, /superseded/);
+  assert.equal(run(FEED_7, [back, club2('postponed-later', { isPostponement: true, utc: null, at: '2026-06-18T10:00:00Z' })]).rule, 'R2');
+  assert.equal(run(FEED_7, [postponed, club2('other', { org: 'league', role: 'league', utc: '2026-07-01T02:00:00Z', at: '2026-06-17T10:00:00Z' })]).rule, 'R2');
+  assert.equal(run(FEED_7, [postponed, page('pg', { utc: '2026-07-01T02:00:00Z', at: '2026-06-17T10:00:00Z' })]).rule, 'R2');
+});

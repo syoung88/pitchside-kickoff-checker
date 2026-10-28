@@ -86,15 +86,34 @@ const foldForQuote = (s) => String(s).normalize('NFC')
   .replace(/[‘’]/g, "'").replace(/[“”]/g, '"')
   .replace(/\s+/g, ' ').trim().toLowerCase();
 
-// The quote must actually contain the stated hour (24h or 12h form), so a model cannot attach a time to an unrelated phrase.
-function quoteSupportsTime(quote, hhmm) {
-  const h24 = Number(hhmm.slice(0, 2));
-  const h12 = h24 % 12 || 12;
-  const numbers = [...quote.matchAll(/(?<!\d)\d{1,2}(?!\d)/g)].map((m) => Number(m[0]));
-  if (numbers.includes(h24) || numbers.includes(h12)) return true;
-  if (hhmm === '12:00') return /\b(noon|midday|mediod[ií]a)\b/i.test(quote);
-  if (hhmm === '00:00') return /\b(midnight|medianoche)\b/i.test(quote);
-  return false;
+// Clock times written in a quote, as hour/minute candidates: "7 PM" is 19:00, a bare "7:45" could be 07:45 or 19:45.
+const CLOCK = /(?<![\d:.])(\d{1,2})(?:[:.h]\s?(\d{2}))?\s*(a\.?m\.?|p\.?m\.?|h(?:rs?)?(?![a-z]))?(?!\d)/gi;
+
+function quotedTimes(quote) {
+  const found = [];
+  for (const m of quote.matchAll(CLOCK)) {
+    const hour = Number(m[1]);
+    const minute = m[2] === undefined ? 0 : Number(m[2]);
+    if (hour > 23 || minute > 59) continue;
+    const meridiem = m[3]?.[0]?.toLowerCase();
+    let hours;
+    if (meridiem === 'a' && hour <= 12) hours = [hour % 12];
+    else if (meridiem === 'p' && hour <= 12) hours = [(hour % 12) + 12];
+    else if (hour >= 13 || hour === 0 || m[1].startsWith('0')) hours = [hour];
+    else hours = [hour, (hour % 12) + 12];
+    found.push({ text: m[0].trim(), times: hours.map((h) => `${String(h).padStart(2, '0')}:${String(minute).padStart(2, '0')}`) });
+  }
+  return found;
+}
+
+// The quote must contain the stated time (hour and minutes, 24h or 12h form), so a model cannot attach a time to an
+// unrelated phrase or to a different time in the same quote, and the time must not be one it also listed as not kickoff.
+function quoteSupportsTime(quote, hhmm, ignoredTimes = []) {
+  const matches = quotedTimes(quote).filter((t) => t.times.includes(hhmm));
+  if (hhmm === '12:00' && /\b(noon|midday|mediod[ií]a)\b/i.test(quote)) return true;
+  if (hhmm === '00:00' && /\b(midnight|medianoche)\b/i.test(quote)) return true;
+  const ignored = ignoredTimes.map(foldForQuote);
+  return matches.some((t) => !ignored.some((i) => i.includes(foldForQuote(t.text))));
 }
 
 const TIME_24H = /^([01]\d|2[0-3]):[0-5]\d$/;
@@ -113,7 +132,7 @@ export function validateClaim(raw, text) {
   if (!isStringOrNull(raw.quote)) return fail('invalid quote');
   if (raw.kickoff_time_24h !== null && raw.quote === null) return fail('quote missing for a stated kickoff time');
   if (raw.quote !== null && !foldForQuote(text).includes(foldForQuote(raw.quote))) return fail('quote not found in the evidence text');
-  if (raw.kickoff_time_24h !== null && !quoteSupportsTime(raw.quote, raw.kickoff_time_24h)) return fail('quote does not contain the stated kickoff hour');
+  if (raw.kickoff_time_24h !== null && !quoteSupportsTime(raw.quote, raw.kickoff_time_24h, raw.ignored_times)) return fail('quote does not contain the stated kickoff time');
   return {
     ok: true,
     claim: {
@@ -122,7 +141,8 @@ export function validateClaim(raw, text) {
       zoneText: raw.timezone_stated,
       dateText: raw.date_text,
       isPostponement: raw.is_postponement_or_cancellation,
-      isRumour: raw.is_rumour_or_unconfirmed,
+      // The model often ticks both flags on an official TBC notice; a TBC announcement is firm, not a rumour.
+      isRumour: raw.is_rumour_or_unconfirmed && !raw.is_tbc,
       isTbc: raw.is_tbc,
       quote: raw.quote,
       ignoredTimes: raw.ignored_times,

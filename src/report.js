@@ -28,7 +28,7 @@ function actionableItem(ranked, index) {
     fixture: fixtureInfo(fixture),
     verdict: decision.verdict,
     rule: decision.rule,
-    urgency: { band, hours: Number(hours.toFixed(1)) },
+    urgency: { band, hours: Number(hours.toFixed(1)), minutes: Math.floor(hours * 60 + 1e-6) },
     confidence: decision.confidence,
     feed: timeOf(fixture.kickoff_utc, tz),
     suggested: timeOf(decision.suggestedUtc, tz),
@@ -62,12 +62,20 @@ export function buildReportModel(results, { asOf, sourceKind }) {
       insufficient_evidence: count('insufficient_evidence'),
       out_of_scope: count('out_of_scope'),
       could_not_check: count('could_not_check'),
-      past_kickoff: ranked.past.length,
+      past_kickoff: ranked.actionable.filter((i) => i.band === 'past').length,
     },
     actionable: ranked.actionable.map(actionableItem),
-    past: ranked.past.map((p, i) => actionableItem(p, i)),
     others,
   };
+}
+
+// "Math.round" read 20 minutes as 0h and 23.6h as 24h next to a CRITICAL band, so minutes below an hour and floor above.
+function kickoffIn(minutes) {
+  if (minutes < 0) {
+    const ago = -minutes;
+    return ago < 60 ? `Kicked off ${ago} min ago` : `Kicked off ${Math.floor(ago / 60)}h ago`;
+  }
+  return minutes < 60 ? `Kicks off in ${minutes} min` : `Kicks off in ${Math.floor(minutes / 60)}h`;
 }
 
 const oneLine = (s) => String(s ?? '').replace(/\s+/g, ' ').trim();
@@ -96,7 +104,7 @@ function renderItem(item) {
   const suggested = item.suggested ? `${item.suggested.utc} (${item.suggested.local})` : 'none';
   const out = [
     `### ${item.rank}. ${title} — ${item.fixture.id} ${names(item.fixture)}`,
-    `Kicks off in ${Math.round(item.urgency.hours)}h · ${item.urgency.band.toUpperCase()}${confidence} · rule ${item.rule}`,
+    `${kickoffIn(item.urgency.minutes)} · ${item.urgency.band === 'past' ? 'PAST KICKOFF' : item.urgency.band.toUpperCase()}${confidence} · rule ${item.rule}`,
     '',
     `- Feed: ${feed}`,
     `- ${suggestedLabel}: ${suggested}`,
@@ -134,12 +142,6 @@ export function renderMarkdown(model) {
     if (index === GUIDE) lines.push(`> **${DIVIDER}**`, '');
     lines.push(renderItem(item), '');
   });
-
-  if (model.past.length > 0) {
-    lines.push('## Past kickoff', '');
-    for (const p of model.past) lines.push(`- ${p.fixture.id} ${names(p.fixture)}: past kickoff, not actionable (feed ${p.feed.utc})`);
-    lines.push('');
-  }
 
   if (model.others.length > 0) {
     lines.push('## Other fixtures', '', '| Fixture | Outcome | Why |', '|---|---|---|');

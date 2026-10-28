@@ -77,10 +77,48 @@ test('parseWeekday reads English and Spanish', () => {
 });
 
 test('parseExplicitDate reads day-month wording', () => {
-  assert.equal(parseExplicitDate('Wednesday 8 July', 2026), '2026-07-08');
-  assert.equal(parseExplicitDate('July 18', 2026), '2026-07-18');
-  assert.equal(parseExplicitDate('Saturday', 2026), null);
-  assert.equal(parseExplicitDate(null, 2026), null);
+  assert.equal(parseExplicitDate('Wednesday 8 July', '2026-07-01'), '2026-07-08');
+  assert.equal(parseExplicitDate('July 18', '2026-07-01'), '2026-07-18');
+  assert.equal(parseExplicitDate('Saturday', '2026-07-01'), null);
+  assert.equal(parseExplicitDate(null, '2026-07-01'), null);
+});
+
+test('parseExplicitDate reads Spanish wording', () => {
+  assert.equal(parseExplicitDate('el sábado 8 de julio', '2026-07-01'), '2026-07-08');
+  assert.equal(parseExplicitDate('3 de enero', '2026-12-30'), '2027-01-03');
+});
+
+test('parseExplicitDate rejects impossible dates and picks the year nearest the feed date', () => {
+  assert.equal(parseExplicitDate('31 Feb', '2026-02-20'), null);
+  assert.equal(parseExplicitDate('July 32', '2026-07-01'), null);
+  assert.equal(parseExplicitDate('29 Feb', '2027-03-01'), '2028-02-29');
+  assert.equal(parseExplicitDate('January 3', '2026-12-30'), '2027-01-03');
+  assert.equal(parseExplicitDate('December 28', '2027-01-02'), '2026-12-28');
+});
+
+test('parseExplicitDate ignores a clock time that follows or is introduced like a month name', () => {
+  assert.equal(parseExplicitDate('gates may 7:30', '2026-07-01'), null);
+  assert.equal(parseExplicitDate('kicks off at 7 may be delayed', '2026-07-01'), null);
+  assert.equal(parseExplicitDate('May 7', '2026-05-01'), '2026-05-07');
+});
+
+test('resolveZone converts fixed-offset names deterministically', () => {
+  const cases = [['UTC', 'UTC'], ['GMT', 'Etc/GMT'], ['BST', 'Etc/GMT-1'], ['CET', 'Etc/GMT-1'], ['CEST', 'Etc/GMT-2'],
+    ['PST', 'Etc/GMT+8'], ['Pacific Standard Time', 'Etc/GMT+8'], ['Pacific Daylight Time', 'Etc/GMT+7']];
+  for (const [text, tz] of cases) assert.deepEqual(resolveZone(text, 'America/Denver'), { tz, via: 'stated' }, text);
+  assert.equal(localToUtc('2026-06-20', '19:00', 'Etc/GMT-1'), '2026-06-20T18:00:00Z');
+  assert.equal(localToUtc('2026-06-20', '19:00', 'Etc/GMT+7'), '2026-06-21T02:00:00Z');
+  assert.equal(localToUtc('2026-06-20', '19:00', 'UTC'), '2026-06-20T19:00:00Z');
+});
+
+test('resolveClaimTime: date wording that cannot be parsed is unusable, not applied to the feed date', () => {
+  for (const dateText of ['tomorrow', 'mañana', 'next week']) {
+    const r = resolveClaimTime(claim({ timeLocal: '15:00', dateText }), fx('fx-2209'));
+    assert.equal(r.utc, null, dateText);
+    assert.match(r.unusableReason, /date wording not understood/);
+  }
+  const ok = resolveClaimTime(claim({ timeLocal: '19:00', dateText: 'el sábado 8 de julio' }), fx('fx-2209'));
+  assert.equal(ok.dateCheck, 'mismatch');
 });
 
 test('resolveClaimTime: Phoenix zoneless 7 PM is 02:00Z, weekday ok, week offset is a caveat', () => {
