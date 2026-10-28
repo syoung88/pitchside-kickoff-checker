@@ -67,3 +67,68 @@ export function utcToLocal(utc, tz) {
   const weekday = new Date(`${ymd}T00:00:00Z`).getUTCDay();
   return { ymd, hm, weekday, label: `${p.weekday} ${p.day} ${p.month} ${hm} ${p.timeZoneName}` };
 }
+
+const WEEKDAYS = {
+  sunday: 0, domingo: 0, monday: 1, lunes: 1, tuesday: 2, martes: 2, wednesday: 3, miercoles: 3,
+  thursday: 4, jueves: 4, friday: 5, viernes: 5, saturday: 6, sabado: 6,
+};
+const MONTHS = ['january', 'february', 'march', 'april', 'may', 'june', 'july', 'august', 'september', 'october', 'november', 'december'];
+const MONTH_PATTERN = `(${MONTHS.join('|')}|${MONTHS.map((m) => m.slice(0, 3)).join('|')})`;
+
+const plain = (text) => text.normalize('NFD').replace(/\p{M}/gu, '').toLowerCase();
+
+export function parseWeekday(text) {
+  if (!text) return null;
+  const m = plain(text).match(new RegExp(`\\b(${Object.keys(WEEKDAYS).join('|')})\\b`));
+  return m ? WEEKDAYS[m[1]] : null;
+}
+
+export function parseExplicitDate(text, year) {
+  if (!text) return null;
+  const t = plain(text);
+  const dayFirst = t.match(new RegExp(`\\b(\\d{1,2})(?:st|nd|rd|th)?\\s+${MONTH_PATTERN}\\b`));
+  const monthFirst = t.match(new RegExp(`\\b${MONTH_PATTERN}\\s+(\\d{1,2})\\b`));
+  let day;
+  let month;
+  if (dayFirst) [day, month] = [dayFirst[1], dayFirst[2]];
+  else if (monthFirst) [month, day] = [monthFirst[1], monthFirst[2]];
+  else return null;
+  const index = MONTHS.findIndex((m) => m === month || m.slice(0, 3) === month);
+  return `${year}-${String(index + 1).padStart(2, '0')}-${day.padStart(2, '0')}`;
+}
+
+const addDays = (ymd, days) => toIsoZ(new Date(Date.parse(`${ymd}T00:00:00Z`) + days * 86400000)).slice(0, 10);
+const shortDate = (ymd) => `${Number(ymd.slice(8))} ${MONTHS[Number(ymd.slice(5, 7)) - 1].slice(0, 3).replace(/^./, (c) => c.toUpperCase())}`;
+
+const unusable = (unusableReason) => ({ utc: null, working: [], dateCheck: 'none', caveats: [], unusableReason });
+
+export function resolveClaimTime(claim, fixture) {
+  const venueTz = fixture.venue.timezone;
+  if (!claim.timeLocal) return unusable('no kickoff time stated');
+
+  const zone = resolveZone(claim.zoneText, venueTz);
+  if (zone.error) return unusable(zone.error);
+
+  const feedLocal = utcToLocal(fixture.kickoff_utc, venueTz);
+  const explicit = parseExplicitDate(claim.dateText, Number(feedLocal.ymd.slice(0, 4)));
+  const weekday = parseWeekday(claim.dateText);
+  const ymd = explicit ?? feedLocal.ymd;
+  const utc = localToUtc(ymd, claim.timeLocal, zone.tz);
+
+  let dateCheck = 'none';
+  if (explicit) dateCheck = explicit === feedLocal.ymd ? 'ok' : 'mismatch';
+  else if (weekday !== null) dateCheck = weekday === feedLocal.weekday ? 'ok' : 'mismatch';
+
+  const caveats = [];
+  if (dateCheck === 'ok' && !explicit && claim.at) {
+    const posted = utcToLocal(claim.at, venueTz);
+    const nearest = addDays(posted.ymd, (weekday - posted.weekday + 7) % 7);
+    if (nearest !== feedLocal.ymd) {
+      caveats.push(`"${claim.dateText}" in a post from ${shortDate(posted.ymd)} points to ${shortDate(nearest)}, but the feed date is ${shortDate(feedLocal.ymd)}; the weekday matches so it is only noted`);
+    }
+  }
+
+  const zoneNote = zone.via === 'stated' ? `${zone.tz} (stated "${claim.zoneText}")` : `${zone.tz} (venue zone, none stated)`;
+  const working = [`"${claim.quote ?? claim.timeLocal}" -> ${claim.timeLocal} ${zoneNote} on ${ymd} = ${utc}`];
+  return { utc, working, dateCheck, caveats, unusableReason: null };
+}
