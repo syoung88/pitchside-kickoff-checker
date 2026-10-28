@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { parseArgs, loadEnv } from '../src/config.js';
 
 test('no args gives defaults', () => {
-  const c = parseArgs([], {});
+  const c = parseArgs([], { OPENAI_API_KEY: 'k' });
   assert.equal(c.offline, false);
   assert.equal(c.asOf, null);
   assert.equal(c.outDir, 'output');
@@ -11,7 +11,7 @@ test('no args gives defaults', () => {
   assert.equal(c.model, 'gpt-4.1-mini');
   assert.equal(c.snapshotDir, 'data/snapshot');
   assert.equal(c.cacheDir, 'data/llm-cache');
-  assert.equal(c.openaiKey, null);
+  assert.equal(c.openaiKey, 'k');
   assert.match(c.apiBase, /everyday-sim.*\/api\/challenge$/);
 });
 
@@ -23,7 +23,7 @@ test('flags are parsed', () => {
 });
 
 test('as-of is normalised to canonical Z form', () => {
-  assert.equal(parseArgs(['--as-of', '2026-06-20T08:25:00.000Z'], {}).asOf, '2026-06-20T08:25:00Z');
+  assert.equal(parseArgs(['--offline', '--as-of', '2026-06-20T08:25:00.000Z'], {}).asOf, '2026-06-20T08:25:00Z');
 });
 
 test('invalid --as-of throws a clear error', () => {
@@ -42,7 +42,13 @@ test('env overrides model and supplies the key; empty key is null', () => {
   const c = parseArgs([], { OPENAI_MODEL: 'm', OPENAI_API_KEY: 'k' });
   assert.equal(c.model, 'm');
   assert.equal(c.openaiKey, 'k');
-  assert.equal(parseArgs([], { OPENAI_API_KEY: '' }).openaiKey, null);
+  assert.equal(parseArgs(['--offline'], { OPENAI_API_KEY: '' }).openaiKey, null);
+});
+
+test('a live run without an API key throws, but --offline does not need one', () => {
+  assert.throws(() => parseArgs([], {}), /OPENAI_API_KEY/);
+  assert.throws(() => parseArgs([], { OPENAI_API_KEY: '' }), /--offline/);
+  assert.doesNotThrow(() => parseArgs(['--offline'], {}));
 });
 
 test('loadEnv ignores a missing file', () => {

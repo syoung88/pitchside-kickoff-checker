@@ -48,4 +48,4 @@ Assumptions where I had no answer: one clear statement from a verified club or t
 
 **With more time:** backtest the rules on past corrections and calibrate confidence; add a review-feedback loop so analysts' decisions refine the rules; handle more zone wording and languages; run on a schedule with alerts for critical items; test the retry logic against the real API's failure modes once they show up.
 
-*Built with Claude Code, test-first. 156 tests, none of which need a network or an API key.*
+*Built with Claude Code, test-first. 165 tests, none of which need a network or an API key.*
