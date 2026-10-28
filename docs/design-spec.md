@@ -4,7 +4,7 @@ Status: DRAFT for review. Agreed section by section with the author; no product 
 
 ## 1. Purpose and scope
 
-Pitchside Data sells a UTC fixture feed to broadcasters, betting operators and apps. Kickoff times go stale when clubs and leagues move matches. This tool reads the monitored fixtures and the evidence collected for each, decides whether the feed's kickoff time is right, and writes a report telling the operations team (two analysts, about half an hour a day between them) what to do.
+Pitchside Data sells a UTC fixture feed to broadcasters, betting operators and apps. Kickoff times go stale when clubs and leagues move matches. This tool reads the monitored fixtures and the evidence collected for each, decides whether the feed's kickoff time is right, and writes a report telling the operations team (two analysts, with half an hour a day between them) what to do.
 
 **The tool recommends only. It never writes to the production feed.** The previous tool did, and it cost Pitchside a client. This is non-negotiable for the pilot.
 
@@ -80,7 +80,7 @@ For each social post and web snippet the LLM returns one claim, constrained by a
 
 The model is told to ignore gate-opening, ticket-office and parking times, and to mark evidence about a different match as `about_this_fixture: no`. The fixture's teams, venue and the evidence timestamp are given as context.
 
-**Validation in code:** enum values and `HH:MM` format are checked, and `quote` must appear verbatim in the original text (otherwise the claim is discarded, a guard against invented times). The model's rumour flag is advisory; trust comes from who posted, not from the model's label.
+**Validation in code:** enum values and `HH:MM` format are checked, and `quote` must appear verbatim in the original text (otherwise the claim is discarded, a guard against invented times). Who posted decides the tier; the rumour flag only gates official claims (a live rumour is never used as a time and forces review, G2), and it is ignored on TBC notices, which the model often ticks as both.
 
 **Settings:** model `gpt-4.1-mini` (override with `OPENAI_MODEL`), temperature 0, 20s timeout, 2 retries on 5xx/429/timeout. Post text is untrusted: it is delimited in the prompt, the model is told to ignore instructions inside it, and the output is schema-constrained and never executed.
 
@@ -124,9 +124,11 @@ A club's account and its own website count as **one organisation**.
 | R6 | A decisive claim's weekday or explicit date does not match the feed's venue-local date | Needs review |
 | R7 | The latest official statement is a TBC notice | Needs review: feed time is not official, re-check |
 | R8 | No usable official claim (only unofficial, press or ScoreFeed evidence, or none) | Insufficient evidence. Notes if ScoreFeed differs from the feed. |
+| R9 | An undated web page disagrees with a post (or another page) from the same organisation | Needs review: a page's timestamp is crawl time, so the tool can't tell which is newer |
+| G2 | Guard: a live official rumour (not superseded by a later firm post from the same organisation) differs from the verdict's time, or hints at a postponement | Needs review: "unconfirmed official claim signals a possible change" |
 | G1 | Guard: an official-tier item could not be read (extraction failed) and the verdict would otherwise be confirmed, change recommended or insufficient | Needs review: "an official post couldn't be read" |
 
-**Evaluation order:** R1, R2, R7, then R3 to R5 with the R6 date check applied to the claims they use, then R8, then G1 as a final override.
+**Evaluation order:** R1, R2 (a postponement superseded by a later firm post from the same organisation is dropped), R9, R7, then R3 to R5 with the R6 date check applied to the claims they use, then R8, then G1 and G2 as final overrides.
 
 ### Confidence
 Shown only for confirmed and change-recommended verdicts:
@@ -139,7 +141,7 @@ Needs-review items show their reason instead of a confidence level.
 
 - **Hours to kickoff** = hours from the as-of time to the earlier of the feed's kickoff and the suggested kickoff, because the match could start at either.
 - **Bands:** critical (under 24h), soon (under 72h), later.
-- A match that has already kicked off is shown on its own line as "past kickoff, not actionable".
+- A match that has already kicked off with a needs-review or change verdict is shown in full, counts as need action, and ranks first (PAST KICKOFF).
 - **Actionable** items are change recommended and needs review. They are ranked by band, then hours to kickoff, then needs-review before change at equal hours, then confidence.
 - The report shows **one ranked list with a divider after the fifth item** ("beyond the usual five a day, lower urgency"). Nothing is hidden. The header states the count against the Head of Operations' guide of five.
 - Confirmed, insufficient-evidence, out-of-scope and could-not-check fixtures appear in a compact table below the list, with a one-line reason each.

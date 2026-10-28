@@ -1,0 +1,16 @@
+{
+  "evidence_id": "ev-2206-b",
+  "model": "gpt-4.1-mini",
+  "prompt_version": "v2",
+  "response": {
+    "about_this_fixture": "yes",
+    "kickoff_time_24h": "20:00",
+    "timezone_stated": null,
+    "date_text": "Thursday",
+    "is_postponement_or_cancellation": false,
+    "is_rumour_or_unconfirmed": true,
+    "is_tbc": true,
+    "quote": "shift to 8:00 PM",
+    "ignored_times": []
+  }
+}

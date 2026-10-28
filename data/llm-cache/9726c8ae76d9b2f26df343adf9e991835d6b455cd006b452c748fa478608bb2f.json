@@ -1,0 +1,16 @@
+{
+  "evidence_id": "ev-2208-a",
+  "model": "gpt-4.1-mini",
+  "prompt_version": "v2",
+  "response": {
+    "about_this_fixture": "yes",
+    "kickoff_time_24h": null,
+    "timezone_stated": null,
+    "date_text": null,
+    "is_postponement_or_cancellation": false,
+    "is_rumour_or_unconfirmed": true,
+    "is_tbc": true,
+    "quote": "Founders Cup quarterfinal kickoff times remain TBC pending broadcast selection",
+    "ignored_times": []
+  }
+}

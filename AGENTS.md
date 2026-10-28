@@ -7,8 +7,6 @@ Build a small Node.js program for Pitchside Data, a sports data company that sel
 
 For each fixture the report must say: what the tool concluded about the kickoff time, what it recommends, why (grounded in the evidence), and how the evidence was weighed.
 
-This is a job-interview challenge. It is assessed on decision-making and clear justification, not on how much is built. A smaller tool with well-explained decisions beats a bigger one that confidently answers everything.
-
 ## Data sources
 - `GET https://everyday-sim-463015353641.us-east1.run.app/api/challenge/fixtures` returns `{fixtures: [...]}` with `id`, `competition`, `home`, `away`, `status`, `kickoff_utc`, `venue {name, city, timezone (IANA)}`, `last_verified_at`.
 - `GET .../api/challenge/fixtures/{id}/evidence` returns `{fixture_id, evidence: [...]}`. Items are `social_post` (platform, account {handle, display_name, verified}, posted_at, text, likes), `web_page` (url, title, snippet, fetched_at) or `feed_listing` (provider "ScoreFeed", retrieved_at, fixture_name, listed_kickoff_utc).
