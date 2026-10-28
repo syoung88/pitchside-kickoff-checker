@@ -8,7 +8,7 @@ import { buildReportModel } from '../src/report.js';
 
 // Cache-only run: any cache miss would call this and fail the test loudly.
 const noLlm = { complete: async () => { throw new Error('golden test must be served from data/llm-cache'); } };
-const config = parseArgs([], {});
+const config = parseArgs(['--offline'], {});
 
 const run = await runAll({ source: createSnapshotSource('data/snapshot'), llm: noLlm, cache: createCache('data/llm-cache'), model: config.model, concurrency: 3 });
 const model = buildReportModel(run.results, { asOf: '2026-06-20T08:25:00Z', sourceKind: run.sourceKind });

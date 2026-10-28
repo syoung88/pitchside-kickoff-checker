@@ -41,5 +41,8 @@ export function parseArgs(argv, env) {
       throw new Error(`unknown option ${flag}`);
     }
   }
+  if (!config.offline && !config.openaiKey) {
+    throw new Error('OPENAI_API_KEY is not set (add it to .env, or use --offline to replay the saved snapshot)');
+  }
   return config;
 }

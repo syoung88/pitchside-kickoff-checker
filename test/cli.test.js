@@ -30,3 +30,9 @@ test('a bad --as-of exits non-zero with a clear message', () => {
 test('an unknown flag exits non-zero', () => {
   assert.notEqual(run(['--nope']).status, 0);
 });
+
+test('a live run without an API key exits 2 and says how to fix it', () => {
+  const r = run([]);
+  assert.equal(r.status, 2);
+  assert.match(r.stderr, /OPENAI_API_KEY is not set/);
+});
