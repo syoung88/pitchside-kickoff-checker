@@ -7,6 +7,8 @@ const STATED_ZONES = {
   ct: 'America/Chicago', central: 'America/Chicago', cdt: 'America/Chicago',
   mt: 'America/Denver', mountain: 'America/Denver', mdt: 'America/Denver',
   pt: 'America/Los_Angeles', pacific: 'America/Los_Angeles', pdt: 'America/Los_Angeles',
+  'hora del este': 'America/New_York', 'hora central': 'America/Chicago', 'hora del centro': 'America/Chicago',
+  'hora de la montana': 'America/Denver', 'hora de montana': 'America/Denver', 'hora del pacifico': 'America/Los_Angeles',
   mst: 'MST', // literal Mountain Standard Time: fixed UTC-7, as Arizona uses all year
   // Named zones with a fixed offset (Etc/GMT signs are inverted); "standard" and "daylight" spell out which one.
   utc: 'UTC', gmt: 'Etc/GMT', bst: 'Etc/GMT-1', cet: 'Etc/GMT-1', cest: 'Etc/GMT-2',
@@ -21,16 +23,18 @@ const CITY_ZONES = {
   denver: 'America/Denver',
   chicago: 'America/Chicago',
   'new york': 'America/New_York',
+  'nueva york': 'America/New_York',
   'los angeles': 'America/Los_Angeles',
   phoenix: 'America/Phoenix',
+  fenix: 'America/Phoenix',
 };
 
 export function resolveZone(zoneText, venueTz) {
   if (zoneText == null || zoneText.trim() === '') return { tz: venueTz, via: 'venue' };
-  const key = zoneText.trim().toLowerCase().replace(/\.$/, '').replace(/ time$/, '');
+  const key = plain(zoneText).trim().replace(/\.$/, '').replace(/ time$/, '');
 
   // Arizona observes Mountain time all year, so "Mountain" at a Phoenix venue means Phoenix time.
-  if ((key === 'mt' || key === 'mountain') && venueTz === 'America/Phoenix') {
+  if (['mt', 'mountain', 'hora de la montana', 'hora de montana'].includes(key) && venueTz === 'America/Phoenix') {
     return { tz: venueTz, via: 'venue' };
   }
   if (STATED_ZONES[key]) return { tz: STATED_ZONES[key], via: 'stated' };

@@ -1,16 +1,16 @@
 {
-  "evidence_id": "ev-2202-a",
+  "evidence_id": "ev-2205-b",
   "model": "gpt-4.1-mini",
-  "prompt_version": "v2",
+  "prompt_version": "v4",
   "response": {
     "about_this_fixture": "yes",
-    "kickoff_time_24h": "19:00",
-    "timezone_stated": null,
-    "date_text": "this Saturday",
+    "kickoff_time_24h": "18:30",
+    "timezone_stated": "PT",
+    "date_text": "Saturday night",
     "is_postponement_or_cancellation": false,
     "is_rumour_or_unconfirmed": false,
     "is_tbc": false,
-    "quote": "Kickoff 7:00 PM this Saturday at Summit Park",
+    "quote": "kickoff moves to 6:30 PM PT",
     "ignored_times": []
   }
 }

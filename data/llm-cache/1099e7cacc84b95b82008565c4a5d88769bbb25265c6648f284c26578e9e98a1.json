@@ -1,16 +1,19 @@
 {
-  "evidence_id": "ev-2202-d",
+  "evidence_id": "ev-2207-b",
   "model": "gpt-4.1-mini",
-  "prompt_version": "v2",
+  "prompt_version": "v4",
   "response": {
     "about_this_fixture": "yes",
     "kickoff_time_24h": "19:00",
-    "timezone_stated": "hora de Denver",
-    "date_text": "este sábado",
+    "timezone_stated": null,
+    "date_text": null,
     "is_postponement_or_cancellation": false,
     "is_rumour_or_unconfirmed": false,
     "is_tbc": false,
-    "quote": "El partido arranca a las 7:00 PM, hora de Denver",
-    "ignored_times": []
+    "quote": "7pm kickoff",
+    "ignored_times": [
+      "5:30pm gates open",
+      "4pm Parking lots open"
+    ]
   }
 }

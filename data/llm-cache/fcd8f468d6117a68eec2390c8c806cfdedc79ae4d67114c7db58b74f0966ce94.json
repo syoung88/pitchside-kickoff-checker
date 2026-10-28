@@ -1,16 +1,16 @@
 {
-  "evidence_id": "ev-2206-a",
+  "evidence_id": "ev-2206-b",
   "model": "gpt-4.1-mini",
-  "prompt_version": "v2",
+  "prompt_version": "v4",
   "response": {
-    "about_this_fixture": "unclear",
+    "about_this_fixture": "yes",
     "kickoff_time_24h": "20:00",
     "timezone_stated": null,
-    "date_text": "thursday",
+    "date_text": "Thursday",
     "is_postponement_or_cancellation": false,
     "is_rumour_or_unconfirmed": true,
     "is_tbc": true,
-    "quote": "might get pushed to 8pm",
+    "quote": "Summit Rovers visit could shift to 8:00 PM",
     "ignored_times": []
   }
 }
