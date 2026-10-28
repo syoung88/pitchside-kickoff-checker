@@ -1,6 +1,6 @@
 # Design spec: Pitchside kickoff checker
 
-Status: DRAFT for review. Agreed section by section with the author; no product code written yet. `NOTES.md` is written from this once approved.
+Status: implemented. Agreed section by section with the author, then built test-first; kept in sync with the code (`NOTES.md` carries the reasoning).
 
 ## 1. Purpose and scope
 
@@ -60,6 +60,7 @@ npm start [-- --as-of <ISO time>] [-- --offline] [-- --out <dir>]
 - `--as-of`: the reference time for urgency. Default: the latest timestamp in the evidence (about 20 Jun 2026), because the sample data is from June 2026. In production this would be the current time.
 - `--offline`: read `data/snapshot/` instead of the API. This is never an automatic fallback: if a live call fails the fixture is reported "could not check". Offline runs show a banner on the terminal output and `report.md`, and set `"source": "offline-snapshot"` in `report.json`.
 - `--out`: output directory, default `./output`.
+- A live run (without `--offline`) needs `OPENAI_API_KEY`; without it the tool exits non-zero at once with a clear message instead of failing every extraction.
 - Exit code 0 for a completed run (including partial failures, which are shown in the report). Non-zero only if no report is possible, e.g. the fixture list cannot be fetched.
 
 ## 4. Claims (LLM extraction)
@@ -73,36 +74,36 @@ For each social post and web snippet the LLM returns one claim, constrained by a
 | `timezone_stated` | Zone wording as written ("ET", "Eastern", "hora de Denver") or null |
 | `date_text` | Date wording as written ("this Saturday", "8 July") or null |
 | `is_postponement_or_cancellation` | boolean |
-| `is_rumour_or_unconfirmed` | boolean, advisory only |
+| `is_rumour_or_unconfirmed` | boolean; an official rumour is never used as a time, but can force review (G2) |
 | `is_tbc` | boolean |
 | `quote` | Shortest verbatim span containing the time |
 | `ignored_times` | Non-kickoff times mentioned (gates, ticket office, parking), as written; shown in the report as a note |
 
-The model is told to ignore gate-opening, ticket-office and parking times, and to mark evidence about a different match as `about_this_fixture: no`. The fixture's teams, venue and the evidence timestamp are given as context.
+The model is told to ignore gate-opening, ticket-office and parking times, and to mark evidence about a different match as `about_this_fixture: no`. The fixture's teams, venue, competition, who posted it and the evidence timestamp are given as context. A reschedule to another day or date counts as a postponement; a same-day time change ("now kicks off at 6 PM") does not.
 
-**Validation in code:** enum values and `HH:MM` format are checked, and `quote` must appear verbatim in the original text (otherwise the claim is discarded, a guard against invented times). Who posted decides the tier; the rumour flag only gates official claims (a live rumour is never used as a time and forces review, G2), and it is ignored on TBC notices, which the model often ticks as both.
+**Validation in code:** enum values and `HH:MM` format are checked, and `quote` must appear verbatim in the original text and contain the stated time (hour and minutes, 12h or 24h form, and not a time the model also listed as ignored); otherwise the claim is discarded, a guard against invented times. Who posted decides the tier; the rumour flag only gates official claims (a live rumour is never used as a time and forces review, G2), and it is ignored on TBC notices, which the model often ticks as both.
 
 **Settings:** model `gpt-4.1-mini` (override with `OPENAI_MODEL`), temperature 0, 20s timeout, 2 retries on 5xx/429/timeout. Post text is untrusted: it is delimited in the prompt, the model is told to ignore instructions inside it, and the output is schema-constrained and never executed.
 
-**Cache:** responses are stored in `data/llm-cache/`, keyed by a hash of model, prompt version, fixture context and text. The cache is committed so the golden test and `--offline` runs work with no API key. A changed prompt changes the version and forces live calls.
+**Cache:** responses are stored in `data/llm-cache/`, keyed by a hash of the model, prompt version, the full prompt and schema, fixture context and text. The cache is committed so the golden test and `--offline` runs work with no API key. Changing the prompt or schema forces live calls until the cache is re-recorded.
 
 ## 5. Time resolution
 
 Done in code, never by the model.
 
-- **Zone lookup:** a table maps wording to IANA zones: ET/Eastern, CT/Central, MT/Mountain, PT/Pacific, and "hora de <city>" to that city's zone. Unknown wording makes the claim unusable for a change, and the working says why.
+- **Zone lookup:** a fixed table maps wording to zones: ET/Eastern, CT/Central, MT/Mountain, PT/Pacific (daylight-aware), "hora de <city>" and the Spanish regional names, and named zones with a fixed offset (UTC, GMT, BST, CET/CEST, EST/CST/PST, MST, and "Eastern standard"-style wording). Unknown wording makes the claim unusable for a change, and the working says why; for an official post that forces review (G1).
 - **Stated zone beats venue zone.** "9 PM Eastern" for a Denver match is converted as Eastern.
 - **No stated zone** means the venue's IANA zone (`venue.timezone`). This handles Arizona automatically: Phoenix has no daylight saving time, so 7 PM there is 02:00Z.
 - **Calendar date:** the feed's venue-local date, unless the claim gives an explicit date. The conversion is recorded step by step and shown in the report.
 - **Known limitation:** a stated zone far from the venue combined with a very late or early time could land on a different calendar day. The report shows the resulting instant, so such cases are visible.
 
 ### Date wording
-Weekday words are read in code from an English and Spanish lexicon ("sábado" as well as "Saturday"); date wording the code cannot read is treated as no date evidence, not as a mismatch. A claim is date-compatible if its weekday (or explicit date) matches the feed's venue-local date. A different weekday means the day may have moved, so the verdict is needs review. A week offset (for example "Tuesday" posted on 19 Jun, which points to 23 Jun, while the feed date is 30 Jun) is shown as a caveat but does not change the verdict. In the sample data, four fixtures have this offset (fx-2204, fx-2205, fx-2207, fx-2209); the posts name the opponent, so the match is identified, and treating every offset as an error would flag half the list.
+Weekday words are read in code from an English and Spanish lexicon ("sábado" as well as "Saturday"); date wording the code cannot read (for example "tomorrow") makes the claim unusable rather than guessing a date, and for an official post that forces review (G1). Explicit dates are read in English and Spanish, with the year chosen nearest the feed's date. A claim is date-compatible if its weekday (or explicit date) matches the feed's venue-local date. A different weekday means the day may have moved, so the verdict is needs review. A week offset (for example "Tuesday" posted on 19 Jun, which points to 23 Jun, while the feed date is 30 Jun) is shown as a caveat but does not change the verdict. In the sample data, four fixtures have this offset (fx-2204, fx-2205, fx-2207, fx-2209); the posts name the opponent, so the match is identified, and treating every offset as an error would flag half the list.
 
 ## 6. Sources and decision rules
 
 ### Source tiers
-Decided in code by matching handle, display name or domain against the fixture's team and competition names. Anything unclassifiable drops to the lower tier.
+Decided in code. An account or host counts as a club only if its name is the team's name plus at most an "official" or language suffix ("Pacific Crown Español"), not merely containing it; a club site is matched on the host's registrable name. A league account must be named after one of the monitored competitions, and a league site needs the competition as its page title and a league-like host. Anything unclassifiable drops to the lower tier.
 
 | Tier | Who | Role |
 |---|---|---|
@@ -118,7 +119,7 @@ A club's account and its own website count as **one organisation**.
 |---|---|---|
 | R1 | Feed status is postponed or cancelled | Out of scope. No time. |
 | R2 | An official source reports a postponement or cancellation but the feed says scheduled | Needs review. No time suggested. |
-| R3 | Per organisation, the latest usable official claim wins (a later post supersedes an earlier one from the same organisation) | (feeds R4 and R5) |
+| R3 | Per organisation, the latest usable official claim wins (a later post supersedes an earlier one from the same organisation). Posts are ordered by posted time; a web page's timestamp is when it was crawled, so pages cannot be ordered against posts (see R9) | (feeds R4 and R5) |
 | R4 | Latest claims from different official organisations disagree | Needs review. Later value pre-filled as a suggestion. |
 | R5 | Official claims agree. Equal to the feed: **confirmed**. Different: **change recommended**. | Confirmed / Change recommended |
 | R6 | A decisive claim's weekday or explicit date does not match the feed's venue-local date | Needs review |
@@ -126,7 +127,7 @@ A club's account and its own website count as **one organisation**.
 | R8 | No usable official claim (only unofficial, press or ScoreFeed evidence, or none) | Insufficient evidence. Notes if ScoreFeed differs from the feed. |
 | R9 | An undated web page disagrees with a post (or another page) from the same organisation | Needs review: a page's timestamp is crawl time, so the tool can't tell which is newer |
 | G2 | Guard: a live official rumour (not superseded by a later firm post from the same organisation) differs from the verdict's time, or hints at a postponement | Needs review: "unconfirmed official claim signals a possible change" |
-| G1 | Guard: an official-tier item could not be read (extraction failed) and the verdict would otherwise be confirmed, change recommended or insufficient | Needs review: "an official post couldn't be read" |
+| G1 | Guard: an official-tier item could not be read (extraction failed, the model could not tell what it is about, or its stated time could not be converted) and the verdict would otherwise be confirmed, change recommended or insufficient | Needs review: "an official post couldn't be read" |
 
 **Evaluation order:** R1, R2 (a postponement superseded by a later firm post from the same organisation is dropped), R9, R7, then R3 to R5 with the R6 date check applied to the claims they use, then R8, then G1 and G2 as final overrides.
 
@@ -141,6 +142,7 @@ Needs-review items show their reason instead of a confidence level.
 
 - **Hours to kickoff** = hours from the as-of time to the earlier of the feed's kickoff and the suggested kickoff, because the match could start at either.
 - **Bands:** critical (under 24h), soon (under 72h), later.
+- If the earlier of the two times has passed but the later is still ahead, hours are treated as 0 (critical): the match may be about to start.
 - A match that has already kicked off with a needs-review or change verdict is shown in full, counts as need action, and ranks first (PAST KICKOFF).
 - **Actionable** items are change recommended and needs review. They are ranked by band, then hours to kickoff, then needs-review before change at equal hours, then confidence.
 - The report shows **one ranked list with a divider after the fifth item** ("beyond the usual five a day, lower urgency"). Nothing is hidden. The header states the count against the Head of Operations' guide of five.
@@ -157,7 +159,7 @@ Needs-review items show their reason instead of a confidence level.
 - feed time and suggested time, each in UTC and venue-local
 - the rule that fired and a one-line reason
 - **Evidence used:** for each item, who said it (name, tier, verified), when, the quote, and the conversion (for example `"6pm Eastern" -> 18:00 America/New_York = 22:00Z`)
-- **Evidence not used:** each item with the reason (different match, unofficial source, superseded by a later claim, unsupported or malformed, matches a superseded claim). Gate, ticket and parking times appear as a short note under the evidence item they came from.
+- **Evidence not used:** each item with the reason (different match, unofficial source, superseded by a later claim, unconfirmed or rumoured, unsupported or malformed, matches a superseded claim). Gate, ticket and parking times appear as a short note under the evidence item they came from.
 - **Caveats:** for example a week offset in the date wording.
 
 `report.json` uses `evidence_used` and `evidence_not_used` with the same fields. The feed's `last_verified_at` is shown as context.
@@ -183,7 +185,7 @@ Needs-review items show their reason instead of a confidence level.
 
 - **time:** Arizona has no daylight saving (7 PM Phoenix = 02:00Z); stated "Eastern" beats the venue zone; "hora de Denver"; evening times that roll into the next UTC day; unknown zone wording rejected; weekday match and mismatch.
 - **sources:** classification of league, club, club site, press and unofficial from handle, domain and names; unclassifiable sources drop a tier.
-- **decide:** one test per rule R1 to R8 and G1 using hand-built claims, including the postponement signal on a scheduled fixture, club-vs-league conflict and the TBC rule.
+- **decide:** one test per rule R1 to R9 and the guards G1 and G2 using hand-built claims, including the postponement signal on a scheduled fixture, club-vs-league conflict and the TBC rule.
 - **api:** a fake `fetch` simulates 503 then success, a hang past the timeout, 429 with `Retry-After`, 404 and malformed JSON; one bad fixture never aborts the run.
 - **extract:** a fake LLM client returns bad JSON, an invalid time, and a quote that is not in the text; each is rejected.
 - **golden:** the full pipeline on the snapshot with the recorded LLM responses, asserting the nine expected outcomes below and their ranked order.
@@ -224,4 +226,4 @@ Expected ranked actionable order (hours from as-of to the earlier of the feed an
 - Postponed and cancelled fixtures, any feed write-back, a UI, scheduling or alerting, learning source weights from history, non-English beyond what the LLM handles, and reading images in posts.
 
 **With more time**
-- Backtest the rules against known past corrections; calibrate confidence; handle zone wording beyond North American abbreviations; add a review-feedback loop so analysts' decisions refine the rules; run on a schedule with alerts for critical items.
+- Backtest the rules against known past corrections; calibrate confidence; handle zone wording beyond the fixed list; add a review-feedback loop so analysts' decisions refine the rules; run on a schedule with alerts for critical items.

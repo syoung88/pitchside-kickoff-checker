@@ -33,10 +33,12 @@ For each fixture the report must say: what the tool concluded about the kickoff 
 - Use timeouts and retries on API calls and surface per-fixture failures in the report instead of aborting.
 - An LLM (OpenAI API) is required for extracting kickoff times from raw evidence text. Keep LLM output structured and validated. Do the timezone conversion and decision logic in deterministic code, not in the model.
 - Never commit secrets. The API key goes in `.env` (gitignored); provide `.env.example`.
+- Changing the extraction prompt, schema or model changes the cache key. Re-record `data/llm-cache/` (run `node index.js --offline` with a key set) and keep the golden test passing.
+- A live run needs `OPENAI_API_KEY` and fails fast without it; `--offline` replays the committed snapshot and cache with no key.
 - Keep the code small and clearly organised; match the style of surrounding code.
 
 ## Docs
-`NOTES.md` is a deliverable covering requirements gathered and assumptions, key design decisions, surprises in the data, any requirement worth pushing back on, what was set aside, and what to do with more time. It is written after the design spec is agreed. Do not create it before then.
+`NOTES.md` is a deliverable covering requirements gathered and assumptions, key design decisions, surprises in the data, any requirement worth pushing back on, what was set aside, and what to do with more time. `docs/design-spec.md` holds the rules in detail. When behaviour changes (rules, prompt, zone or date handling, CLI), update both, plus `README.md` if the run instructions change.
 
 ## Local-only files (gitignored, do not commit)
 `brief_and_notes.md` and `fixtures-evidence-summary.md` may exist locally as reference material.
