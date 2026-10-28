@@ -44,6 +44,12 @@ test('resolveZone maps North American wording to IANA zones', () => {
   }
 });
 
+test('resolveZone: Spanish city names, with or without accents', () => {
+  assert.deepEqual(resolveZone('hora de Nueva York', 'America/Denver'), { tz: 'America/New_York', via: 'stated' });
+  assert.deepEqual(resolveZone('Hora de Los Ángeles', 'America/Denver'), { tz: 'America/Los_Angeles', via: 'stated' });
+  assert.deepEqual(resolveZone('hora de Fénix', 'America/Denver'), { tz: 'America/Phoenix', via: 'stated' });
+});
+
 test('resolveZone: "hora de Denver" overrides a New York venue', () => {
   assert.deepEqual(resolveZone('hora de Denver', 'America/New_York'), { tz: 'America/Denver', via: 'stated' });
 });

@@ -1,16 +1,16 @@
 {
-  "evidence_id": "ev-2204-a",
+  "evidence_id": "ev-2202-a",
   "model": "gpt-4.1-mini",
-  "prompt_version": "v2",
+  "prompt_version": "v3",
   "response": {
     "about_this_fixture": "yes",
-    "kickoff_time_24h": "17:00",
-    "timezone_stated": "CT",
-    "date_text": "next Tuesday",
+    "kickoff_time_24h": "19:00",
+    "timezone_stated": null,
+    "date_text": "this Saturday",
     "is_postponement_or_cancellation": false,
     "is_rumour_or_unconfirmed": false,
     "is_tbc": false,
-    "quote": "kicks off 5:00 PM CT",
+    "quote": "Kickoff 7:00 PM this Saturday",
     "ignored_times": []
   }
 }

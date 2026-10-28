@@ -1,7 +1,7 @@
 {
   "evidence_id": "ev-2204-b",
   "model": "gpt-4.1-mini",
-  "prompt_version": "v2",
+  "prompt_version": "v3",
   "response": {
     "about_this_fixture": "yes",
     "kickoff_time_24h": "19:30",
@@ -10,7 +10,7 @@
     "is_postponement_or_cancellation": false,
     "is_rumour_or_unconfirmed": false,
     "is_tbc": false,
-    "quote": "kick off at 7:30 PM CT",
+    "quote": "Tuesday's match vs Fogline SC will now kick off at 7:30 PM CT",
     "ignored_times": []
   }
 }

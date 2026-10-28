@@ -1,19 +1,16 @@
 {
-  "evidence_id": "ev-2207-a",
+  "evidence_id": "ev-2209-a",
   "model": "gpt-4.1-mini",
-  "prompt_version": "v2",
+  "prompt_version": "v3",
   "response": {
     "about_this_fixture": "yes",
     "kickoff_time_24h": "19:00",
     "timezone_stated": null,
-    "date_text": "Friday",
+    "date_text": "Tuesday night",
     "is_postponement_or_cancellation": false,
     "is_rumour_or_unconfirmed": false,
     "is_tbc": false,
-    "quote": "Kickoff 7:00 PM",
-    "ignored_times": [
-      "Ticket office closes 3:00 PM",
-      "Gates open 5:30 PM"
-    ]
+    "quote": "Kickoff vs Summit Rovers is now 7:00 PM",
+    "ignored_times": []
   }
 }

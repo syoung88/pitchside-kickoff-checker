@@ -1,19 +1,19 @@
 {
-  "evidence_id": "ev-2207-b",
+  "evidence_id": "ev-2207-a",
   "model": "gpt-4.1-mini",
-  "prompt_version": "v2",
+  "prompt_version": "v3",
   "response": {
     "about_this_fixture": "yes",
     "kickoff_time_24h": "19:00",
     "timezone_stated": null,
-    "date_text": null,
+    "date_text": "Friday",
     "is_postponement_or_cancellation": false,
     "is_rumour_or_unconfirmed": false,
     "is_tbc": false,
-    "quote": "7pm kickoff",
+    "quote": "Kickoff 7:00 PM",
     "ignored_times": [
-      "gates open at 5:30pm",
-      "Parking lots open from 4pm"
+      "Ticket office closes 3:00 PM",
+      "Gates open 5:30 PM"
     ]
   }
 }

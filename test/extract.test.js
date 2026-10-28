@@ -140,7 +140,8 @@ test('the prompt gives the model the competition and who posted, and judges "sam
   assert.match(user, /Posted by: Harbour City FC \(@HarbourCityFC\)/);
   assert.match(system, /not by date or weekday/i);
   assert.match(system, /different opponent/i);
-  assert.equal(PROMPT_VERSION, 'v2');
+  assert.equal(PROMPT_VERSION, 'v3');
+  assert.match(system, /moved to 6 PM[^\n]*not a postponement/i);
 });
 
 test('validateClaim requires the quote to contain the stated hour', () => {

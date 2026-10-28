@@ -1,0 +1,16 @@
+{
+  "evidence_id": "ev-2201-a",
+  "model": "gpt-4.1-mini",
+  "prompt_version": "v3",
+  "response": {
+    "about_this_fixture": "yes",
+    "kickoff_time_24h": "18:00",
+    "timezone_stated": "ET",
+    "date_text": "Saturday",
+    "is_postponement_or_cancellation": false,
+    "is_rumour_or_unconfirmed": false,
+    "is_tbc": false,
+    "quote": "Saturday's clash with Red Vale United now kicks off at 6:00 PM ET",
+    "ignored_times": []
+  }
+}

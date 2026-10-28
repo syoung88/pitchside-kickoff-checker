@@ -21,13 +21,15 @@ const CITY_ZONES = {
   denver: 'America/Denver',
   chicago: 'America/Chicago',
   'new york': 'America/New_York',
+  'nueva york': 'America/New_York',
   'los angeles': 'America/Los_Angeles',
   phoenix: 'America/Phoenix',
+  fenix: 'America/Phoenix',
 };
 
 export function resolveZone(zoneText, venueTz) {
   if (zoneText == null || zoneText.trim() === '') return { tz: venueTz, via: 'venue' };
-  const key = zoneText.trim().toLowerCase().replace(/\.$/, '').replace(/ time$/, '');
+  const key = plain(zoneText).trim().replace(/\.$/, '').replace(/ time$/, '');
 
   // Arizona observes Mountain time all year, so "Mountain" at a Phoenix venue means Phoenix time.
   if ((key === 'mt' || key === 'mountain') && venueTz === 'America/Phoenix') {

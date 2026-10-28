@@ -1,16 +1,16 @@
 {
-  "evidence_id": "ev-2201-c",
+  "evidence_id": "ev-2205-b",
   "model": "gpt-4.1-mini",
-  "prompt_version": "v2",
+  "prompt_version": "v3",
   "response": {
     "about_this_fixture": "yes",
-    "kickoff_time_24h": "18:00",
-    "timezone_stated": "ET",
-    "date_text": "Saturday June 20",
+    "kickoff_time_24h": "18:30",
+    "timezone_stated": "PT",
+    "date_text": "Saturday night",
     "is_postponement_or_cancellation": false,
     "is_rumour_or_unconfirmed": false,
     "is_tbc": false,
-    "quote": "Kickoff 6:00 PM ET",
+    "quote": "kickoff moves to 6:30 PM PT",
     "ignored_times": []
   }
 }
